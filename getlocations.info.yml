@@ -2,10 +2,8 @@ name: 'Get Locations'
 description: 'Show locations on a Google map.'
 package: Location
 core: 8.x
-php: '5'
-dependencies:
-  - libraries
 version: 8.x-dev
 project: getlocations
-# datestamp: '1444296543'
-# type: module
+type: module
+dependencies:
+  - libraries
