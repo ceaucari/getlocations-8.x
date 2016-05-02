@@ -17,7 +17,7 @@
 function getlocations_views_default_views() {
   $views = array();
 
-  if (module_exists('location')) {
+  if (\Drupal::moduleHandler()->moduleExists('location')) {
     /**
     * getlocations node
     */
@@ -963,7 +963,7 @@ function getlocations_views_default_views() {
     $views[$view->name] = $view;
 
   }
-  elseif (module_exists('geofield')) {
+  elseif (\Drupal::moduleHandler()->moduleExists('geofield')) {
 
     /**
     * getlocations node
@@ -1213,7 +1213,7 @@ function getlocations_views_default_views() {
     $views[$view->name] = $view;
 
   }
-  elseif (module_exists('geolocation')) {
+  elseif (\Drupal::moduleHandler()->moduleExists('geolocation')) {
 
     /**
     * getlocations node

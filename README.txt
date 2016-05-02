@@ -1,4 +1,4 @@
-for Drupal 7
+For Drupal 8
 
 Getlocations 1.x
 
@@ -33,7 +33,7 @@ https://dl.dropboxusercontent.com/u/41489105/Drupal/getlocations/getlocations-ma
 
 Download the file(s) and place them into your libraries folder so you have
 a path something like this:
-sites/all/libraries/getlocations/markers
+/libraries/getlocations/markers
 
 The 'extra' files contain numbered and letter markers.
 You can optionally add these if you need them.
@@ -338,4 +338,3 @@ If you want to preselect a particular item in the dropdown you can add something
 var key = 'key_1';
 var tp = 'grocery_or_supermarket';
 $("#search_places_select_" + key).val(tp);
-

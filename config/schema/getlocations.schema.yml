@@ -1,0 +1,16 @@
+getlocations.settings:
+  type: mapping
+  label: Settings
+  mapping:
+    getlocations_private_markerfile:
+      type: string
+    getlocations_flush:
+      type: integer
+    getlocations_api3_key:
+      type: string
+    getlocations_map_version:
+      type: string
+    getlocations_default:
+      type: string
+    getlocations_aggr:
+      type: integer

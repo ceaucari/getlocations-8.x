@@ -13,13 +13,15 @@
  * Implements hook_uninstall().
  */
 function getlocations_uninstall() {
-  $query = db_delete('variable')
-    ->condition('name', 'getlocations_%', 'LIKE')
-    ->execute();
+  // @FIXME
+// $query = db_delete('variable')
+//     ->condition('name', 'getlocations_%', 'LIKE')
+//     ->execute();
+
 
   // delete markerfile
   if (file_default_scheme() == 'public') {
-    $markerpath = file_stream_wrapper_get_instance_by_scheme(file_default_scheme())->getDirectoryPath() . '/getlocations';
+    $markerpath = \Drupal::service("stream_wrapper_manager")->getViaScheme(file_default_scheme())->getDirectoryPath() . '/getlocations';
     if (file_exists($markerpath)) {
       file_unmanaged_delete_recursive($markerpath);
     }
@@ -30,30 +32,37 @@ function getlocations_uninstall() {
  * Implements hook_enable().
  */
 function getlocations_enable() {
-  if (drupal_is_cli()) {
+  if ((PHP_SAPI === "cli")) {
     return;
   }
   if ((isset($_GET) && $_GET['q'] == 'admin/modules') || (isset($_REQUEST['overlay']) && $_REQUEST['overlay'] == 'admin/modules')) {
-    drupal_set_message(st('Thank you for installing Getlocations. To set it up please visit the <a href="@url">configuration page</a>.', array('@url' => url('admin/config/services/getlocations'))), 'status');
+    // @FIXME
+// url() expects a route name or an external URI.
+// drupal_set_message(t('Thank you for installing Getlocations. To set it up please visit the <a href="@url">configuration page</a>.', array('@url' => url('admin/config/services/getlocations'))), 'status');
+
   }
 }
 
 function getlocations_update_7100() {
   $module = '';
-  if (module_exists('getlocations_fields')) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
     $module = 'getlocations_fields';
   }
-  elseif (module_exists('location_cck')) {
+  elseif (\Drupal::moduleHandler()->moduleExists('location_cck')) {
     $module = 'location_cck';
   }
-  elseif (module_exists('geolocation')) {
+  elseif (\Drupal::moduleHandler()->moduleExists('geolocation')) {
     $module = 'geolocation';
   }
-  elseif (module_exists('geofield')) {
+  elseif (\Drupal::moduleHandler()->moduleExists('geofield')) {
     $module = 'geofield';
   }
   if ($module) {
-    $var = variable_get('getlocations_node_marker', array('enable' => 0));
+    // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$var = \Drupal::config('getlocations.settings')->get('getlocations_node_marker');
     if ($var['enable'] == 1) {
       $data = array();
       $ct = 0;
@@ -92,14 +101,18 @@ function getlocations_update_7100() {
         }
         $data2['enable'] = 1;
         $data2['content_type'] = $tmp;
-        variable_set('getlocations_node_marker', $data2);
+        \Drupal::configFactory()->getEditable('getlocations.settings')->set('getlocations_node_marker', $data2)->save();
       }
     }
   }
 }
 
 function getlocations_update_7101() {
-  $getlocations_term_marker = variable_get('getlocations_term_marker', array('enable' => 0, 'vid' => 0, 'max_depth' => ''));
+  // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_term_marker = \Drupal::config('getlocations.settings')->get('getlocations_term_marker');
   if ($getlocations_term_marker['enable']) {
     if ($getlocations_term_marker['vid']) {
       $vid = $getlocations_term_marker['vid'];
@@ -111,14 +124,14 @@ function getlocations_update_7101() {
         $tmp_term_marker['vid'][$vid]['term'][$tid] = $term;
       }
       $tmp_term_marker['max_depth'] = $getlocations_term_marker['max_depth'];
-      variable_set('getlocations_term_marker', $tmp_term_marker);
+      \Drupal::configFactory()->getEditable('getlocations.settings')->set('getlocations_term_marker', $tmp_term_marker)->save();
     }
     else {
-      variable_set('getlocations_term_marker', array('enable' => 0, 'vids' => 0, 'max_depth' => ''));
+      \Drupal::configFactory()->getEditable('getlocations.settings')->set('getlocations_term_marker', array('enable' => 0, 'vids' => 0, 'max_depth' => ''))->save();
     }
   }
   else {
-    variable_set('getlocations_term_marker', array('enable' => 0, 'vids' => 0, 'max_depth' => ''));
+    \Drupal::configFactory()->getEditable('getlocations.settings')->set('getlocations_term_marker', array('enable' => 0, 'vids' => 0, 'max_depth' => ''))->save();
   }
 }
 

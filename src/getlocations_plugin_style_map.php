@@ -1,13 +1,5 @@
 <?php
-
-/**
- * @file
- * getlocations_plugin_style_map.inc
- * @author Bob Hutchinson http://drupal.org/user/52366
- * @copyright GNU GPL
- *
- * Contains the getlocations style plugin.
- */
+namespace Drupal\getlocations;
 
 /**
  * Getlocations style plugin to render rows as icons on a map.

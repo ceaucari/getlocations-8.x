@@ -18,7 +18,15 @@
 function getlocations_settings_form() {
   $getlocations_defaults = getlocations_defaults();
   $getlocations_paths = getlocations_paths_get();
-  drupal_add_js($getlocations_paths['getlocations_admin_path']);
+  // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_admin_path']);
+
 
   $form = array();
 
@@ -35,7 +43,7 @@ function getlocations_settings_form() {
 
   $c = count(getlocations_get_marker_titles());
   if ($c) {
-    $rebuildmsg = '<p>' . format_plural($c, 'You have 1 marker installed.', 'You have @count markers installed.') . '</p>';
+    $rebuildmsg = '<p>' . \Drupal::translation()->formatPlural($c, 'You have 1 marker installed.', 'You have @count markers installed.') . '</p>';
   }
   else {
     $rebuildmsg = '<p class="error">' . t('WARNING! NO markers found.') . '</p>';
@@ -45,7 +53,7 @@ function getlocations_settings_form() {
   if (file_default_scheme() != 'public') {
     $form['rebuild']['getlocations_private_markerfile'] = getlocations_element_map_tf(
       t('Path to getlocations_markers.js'),
-      variable_get('getlocations_private_markerfile', ''),
+      \Drupal::config('getlocations.settings')->get('getlocations_private_markerfile'),
       t('You are using the <em>Private</em> download method. For markers to work properly. you must press the <em>Regenerate</em> button, manually copy js/getlocations_markers.js from the files directory to a location accessible by the webserver, and enter the file path relative to the Drupal root (including the filename) in this field. Example: <em>sites/default/misc/getlocations_markers.js</em>'),
       60,
       255,
@@ -64,12 +72,12 @@ function getlocations_settings_form() {
   );
   $form['rebuild']['getlocations_flush'] = getlocations_element_map_checkbox(
     t('Flush marker cache'),
-    variable_get('getlocations_flush', 1),
+    \Drupal::config('getlocations.settings')->get('getlocations_flush'),
     t('Include the marker cache when the Drupal cache is flushed.')
   );
 
   // google api3 key
-  $apikey = variable_get('getlocations_api3_key', '');
+  $apikey = \Drupal::config('getlocations.settings')->get('getlocations_api3_key');
   $form['api3'] = array(
     '#type' => 'fieldset',
     '#title' => t('Google API key'),
@@ -82,14 +90,18 @@ function getlocations_settings_form() {
   $form['api3']['getlocations_api3_key'] = getlocations_element_map_tf(
     t('Your Google maps API Version 3 key'),
     $apikey,
-    t('For more information about this key see this !u', array('!u' => l(t('page on google'), 'http://code.google.com/apis/maps/documentation/javascript/tutorial.html#api_key', array('attributes' => array('target' => '_blank'))))),
+    t('For more information about this key see this !u', array('!u' => \Drupal::l(t('page on google'), \Drupal\Core\Url::fromUri('http://code.google.com/apis/maps/documentation/javascript/tutorial.html#api_key')))),
     95,
     255,
     FALSE
   );
 
   // mapquest
-  $mapquest_lic =  variable_get('getlocations_mapquest_lic', array('key' => '', 'type' => 'l'));
+  // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$mapquest_lic =  \Drupal::config('getlocations.settings')->get('getlocations_mapquest_lic');
   $form['getlocations_mapquest_lic'] = array(
     '#type' => 'fieldset',
     '#title' => t('Mapquest key'),
@@ -111,11 +123,15 @@ function getlocations_settings_form() {
   );
 
   // $what3words
-  $what3words_lic = variable_get('getlocations_what3words_lic', array('key' => '', 'url' => 'http://api.what3words.com'));
+  // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$what3words_lic = \Drupal::config('getlocations.settings')->get('getlocations_what3words_lic');
   $form['getlocations_what3words_lic'] = array(
     '#type' => 'fieldset',
     '#title' => t('What3Words API key'),
-    '#description' => t('This key is required if you want to use !u services.', array('!u' => l(t('What3Words'), 'http://developer.what3words.com/', array('attributes' => array('target' => '_blank'))))),
+    '#description' => t('This key is required if you want to use !u services.', array('!u' => \Drupal::l(t('What3Words'), \Drupal\Core\Url::fromUri('http://developer.what3words.com/')))),
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
     '#tree' => TRUE,
@@ -134,7 +150,7 @@ function getlocations_settings_form() {
   );
 
   // map version
-  $map_version = variable_get('getlocations_map_version', '');
+  $map_version = \Drupal::config('getlocations.settings')->get('getlocations_map_version');
   $form['map_version'] =  array(
     '#type' => 'fieldset',
     '#title' => t('Google Map version'),
@@ -198,7 +214,7 @@ function getlocations_settings_form() {
     $getlocations_defaults['user_map_marker'],
     $desc
   );
-  if (module_exists('taxonomy')) {
+  if (\Drupal::moduleHandler()->moduleExists('taxonomy')) {
     // default vocabulary marker
     $desc = '';
     if (getlocations_get_vocabularies()) {
@@ -217,7 +233,7 @@ function getlocations_settings_form() {
       ''
     );
   }
-  if (module_exists('comment')) {
+  if (\Drupal::moduleHandler()->moduleExists('comment')) {
     // default comment marker
     $desc = '';
     if (getlocations_check_entity_type('comment')) {
@@ -231,7 +247,7 @@ function getlocations_settings_form() {
     );
   }
 
-  if (module_exists('getlocations_fields')) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
     // default input marker
     $form['getlocations_default']['input_map_marker'] = getlocations_element_map_marker(
       t('Default Input Map marker'),
@@ -243,7 +259,7 @@ function getlocations_settings_form() {
 
   $form['getlocations_default'] += getlocations_markeraction_form($getlocations_defaults);
 
-  if (module_exists('getdirections')) {
+  if (\Drupal::moduleHandler()->moduleExists('getdirections')) {
     $form['getlocations_default']['getdirections_link'] = getlocations_element_map_checkbox(
       t('Link to Getdirections in bubble'),
       $getlocations_defaults['getdirections_link'],
@@ -252,7 +268,7 @@ function getlocations_settings_form() {
   }
 
   // views_search options
-  if (module_exists('getlocations_fields') && module_exists('views')) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_fields') && \Drupal::moduleHandler()->moduleExists('views')) {
     $form['getlocations_default'] += getlocations_fields_views_search_form($getlocations_defaults);
   }
   else {
@@ -297,7 +313,7 @@ function getlocations_settings_form() {
     64
   );
 
-  if (module_exists('getlocations_fields')) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
     if (getlocations_check_entity_type('user') || getlocations_check_entity_type('profile2')) {
       $form['getlocations_default']['returnlink_user_enable'] = getlocations_element_map_checkbox(
         t('Show link back to user'),
@@ -312,7 +328,7 @@ function getlocations_settings_form() {
       );
     }
 
-    if (module_exists('taxonomy')) {
+    if (\Drupal::moduleHandler()->moduleExists('taxonomy')) {
       if (getlocations_get_vocabularies()) {
         $form['getlocations_default']['returnlink_term_enable'] = getlocations_element_map_checkbox(
           t('Show link back to term'),
@@ -362,7 +378,11 @@ function getlocations_settings_form() {
       '#collapsible' => TRUE,
       '#collapsed' => FALSE,
     );
-    $getlocations_node_marker = variable_get('getlocations_node_marker', array('enable' => 0));
+    // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_node_marker = \Drupal::config('getlocations.settings')->get('getlocations_node_marker');
     $form['getlocations_node_marker']['enable'] = getlocations_element_map_checkbox(
       t('Enable Markers for Content types'),
       $getlocations_node_marker['enable']
@@ -386,7 +406,7 @@ function getlocations_settings_form() {
     $form['getlocations_node_marker']['content_type'][$type]['field_name'][$field_name]['map_marker']['#suffix'] = '</div>';
   }
 
-  if (module_exists('taxonomy')) {
+  if (\Drupal::moduleHandler()->moduleExists('taxonomy')) {
     // vocabulary markers
     if ($types = getlocations_get_vocabularies()) {
       $module = getlocations_get_current_supported_module();
@@ -399,7 +419,11 @@ function getlocations_settings_form() {
         '#collapsible' => TRUE,
         '#collapsed' => FALSE,
       );
-      $getlocations_vocabulary_marker = variable_get('getlocations_vocabulary_marker', array('enable' => 0));
+      // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_vocabulary_marker = \Drupal::config('getlocations.settings')->get('getlocations_vocabulary_marker');
       $form['getlocations_vocabulary_marker']['enable'] = getlocations_element_map_checkbox(
         t('Enable Markers for Vocabularies'),
         $getlocations_vocabulary_marker['enable']
@@ -429,7 +453,11 @@ function getlocations_settings_form() {
       '#collapsible' => TRUE,
       '#collapsed' => FALSE,
     );
-    $getlocations_term_marker = variable_get('getlocations_term_marker', array('enable' => 0, 'vids' => 0, 'max_depth' => ''));
+    // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_term_marker = \Drupal::config('getlocations.settings')->get('getlocations_term_marker');
     $form['getlocations_term_marker']['enable'] = getlocations_element_map_checkbox(
       t('Enable Markers for Terms'),
       $getlocations_term_marker['enable'],
@@ -457,7 +485,7 @@ function getlocations_settings_form() {
       $depth = is_numeric($getlocations_term_marker['max_depth']) && $getlocations_term_marker['max_depth'] > 0 ? $getlocations_term_marker['max_depth'] : NULL;
       $vids = $getlocations_term_marker['vids'];
       foreach ($vids AS $vid) {
-        $terms = taxonomy_get_tree($vid, 0, $depth);
+        $terms = \Drupal::entityManager()->getStorage("taxonomy_term")->loadTree($vid, 0, $depth);
         foreach ($terms AS $term) {
           $tid = $term->tid;
           $name = $term->name;
@@ -479,7 +507,7 @@ function getlocations_settings_form() {
   }
 
   // colorbox
-  if (module_exists('colorbox')) {
+  if (\Drupal::moduleHandler()->moduleExists('colorbox')) {
     $getlocations_colorbox = getlocations_colorbox_settings();
     $form['getlocations_colorbox'] = array(
       '#type' => 'fieldset',
@@ -799,7 +827,7 @@ function getlocations_settings_validate($form, &$form_state) {
   if (isset($form_state['values']['getlocations_default']['returnlink_page_enable']) && $form_state['values']['getlocations_default']['returnlink_page_enable'] && empty($form_state['values']['getlocations_default']['returnlink_page_link'])) {
     form_set_error('getlocations_default][returnlink_page_link', t('Page return link must be filled in'));
   }
-  if (module_exists('getlocations_fields')) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
     if (isset($form_state['values']['getlocations_default']['returnlink_user_enable']) && $form_state['values']['getlocations_default']['returnlink_user_enable'] && empty($form_state['values']['getlocations_default']['returnlink_user_link'])) {
       form_set_error('getlocations_default][returnlink_user_link', t('User return link must be filled in'));
     }
@@ -825,7 +853,7 @@ function getlocations_settings_validate($form, &$form_state) {
     form_set_error('getlocations_default][getlocations_js_weight', t('Getlocations js weight must be a number'));
   }
 
-  if (module_exists('colorbox') && isset($form_state['values']['getlocations_colorbox']['enable']) && $form_state['values']['getlocations_colorbox']['enable']) {
+  if (\Drupal::moduleHandler()->moduleExists('colorbox') && isset($form_state['values']['getlocations_colorbox']['enable']) && $form_state['values']['getlocations_colorbox']['enable']) {
     if (empty($form_state['values']['getlocations_colorbox']['width']) || ! is_numeric($form_state['values']['getlocations_colorbox']['width']) || $form_state['values']['getlocations_colorbox']['width'] < 1 ) {
       form_set_error('getlocations_colorbox][width', t('Colorbox width must be a number'));
     }
@@ -834,7 +862,7 @@ function getlocations_settings_validate($form, &$form_state) {
     }
   }
 
-  if (module_exists('colorbox') && isset($form_state['values']['getlocations_colorbox']['marker_enable']) && $form_state['values']['getlocations_colorbox']['marker_enable']) {
+  if (\Drupal::moduleHandler()->moduleExists('colorbox') && isset($form_state['values']['getlocations_colorbox']['marker_enable']) && $form_state['values']['getlocations_colorbox']['marker_enable']) {
     if (empty($form_state['values']['getlocations_colorbox']['marker_width']) || ! is_numeric($form_state['values']['getlocations_colorbox']['marker_width']) || $form_state['values']['getlocations_colorbox']['marker_width'] < 1 ) {
       form_set_error('getlocations_colorbox][marker_width', t('Colorbox width must be a number'));
     }

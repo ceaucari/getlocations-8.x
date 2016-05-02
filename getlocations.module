@@ -30,13 +30,29 @@ function getlocations_help($path, $arg) {
  * Implements hook_init().
  */
 function getlocations_init() {
-  if (module_exists('colorbox')) {
+  if (\Drupal::moduleHandler()->moduleExists('colorbox')) {
     $getlocations_colorbox = getlocations_colorbox_settings();
     if ($getlocations_colorbox['enable']) {
       $settings = array('getlocations_colorbox' => $getlocations_colorbox);
-      drupal_add_js($settings, 'setting');
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($settings, 'setting');
+
       $getlocations_paths = getlocations_paths_get();
-      drupal_add_js($getlocations_paths['getlocations_colorbox_path']);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_colorbox_path']);
+
     }
   }
 }
@@ -61,7 +77,7 @@ function getlocations_permission() {
  * Implements hook_flush_caches().
  */
 function getlocations_flush_caches() {
-  if (variable_get('getlocations_flush', 1)) {
+  if (\Drupal::config('getlocations.settings')->get('getlocations_flush')) {
     getlocations_regenerate_markers();
   }
 }
@@ -77,8 +93,16 @@ function getlocations_views_api() {
 }
 
 /**
- * Implements hook_menu().
+ * @FIXME
+ * This implementation of hook_menu() cannot be automatically converted because
+ * it contains logic (i.e., branching statements, function calls, object
+ * instantiation, etc.) You will need to convert it manually. Sorry!
+ *
+ * For more information on how to convert hook_menu() to Drupal 8's new routing
+ * and linking systems, see https://api.drupal.org/api/drupal/core%21includes%21menu.inc/group/menu/8
  */
+
+
 function getlocations_menu() {
   $items = array();
 
@@ -129,7 +153,7 @@ function getlocations_menu() {
       'type' => MENU_CALLBACK,
     );
   }
-  if (module_exists('taxonomy')) {
+  if (\Drupal::moduleHandler()->moduleExists('taxonomy')) {
     // getlocations/term/$tid    # show all locations for a term
     $items['getlocations/term/%getlocations_id'] = array(
       'title' => 'Get term locations',
@@ -139,7 +163,7 @@ function getlocations_menu() {
       'type' => MENU_CALLBACK,
     );
   }
-  if (module_exists('comment')) {
+  if (\Drupal::moduleHandler()->moduleExists('comment')) {
     if (getlocations_check_entity_type('comment')) {
       // getlocations/comment/$cid    # show all locations for a comment
       $items['getlocations/comment/%getlocations_id'] = array(
@@ -277,10 +301,10 @@ function getlocations_entity_type_load($arg) {
  *
  */
 function getlocations_access_location() {
-  if (user_access('access getlocations')) {
+  if (\Drupal::currentUser()->hasPermission('access getlocations')) {
     $modules = getlocations_supported_modules();
     foreach ($modules AS $module) {
-      if (module_exists($module)) {
+      if (\Drupal::moduleHandler()->moduleExists($module)) {
         return TRUE;
       }
     }
@@ -295,10 +319,10 @@ function getlocations_access_location() {
  *
  */
 function getlocations_access_user_location() {
-  if (user_access('access user getlocations') && user_access('access user profiles')) {
+  if (\Drupal::currentUser()->hasPermission('access user getlocations') && \Drupal::currentUser()->hasPermission('access user profiles')) {
     $modules = getlocations_supported_modules();
     foreach ($modules AS $module) {
-      if (module_exists($module)) {
+      if (\Drupal::moduleHandler()->moduleExists($module)) {
         return TRUE;
       }
     }
@@ -319,7 +343,7 @@ function getlocations_nodemap($nid) {
 
   $vid = getlocations_get_vid($nid);
   $locations = getlocations_load_locations($vid);
-  $node = node_load($nid);
+  $node = \Drupal::entityManager()->getStorage('node')->load($nid);
 
   $getlocations_defaults = getlocations_defaults();
   $marker = $getlocations_defaults['node_map_marker'];
@@ -384,7 +408,14 @@ function getlocations_nodemap($nid) {
     $minmaxes = '';
   }
 
-  drupal_set_title(t('View !t locations', array('!t' => $node->title)));
+  // @FIXME
+// drupal_set_title() has been removed. There are now a few ways to set the title
+// dynamically, depending on the situation.
+// 
+// 
+// @see https://www.drupal.org/node/2067859
+// drupal_set_title(t('View !t locations', array('!t' => $node->title)));
+
 
   if ($sv_info) {
     $extra_info = array_merge($extra_info, $sv_info);
@@ -412,7 +443,7 @@ function getlocations_usermap($uid) {
 
   $marker = $getlocations_defaults['user_map_marker'];
   $locations = getlocations_load_locations($uid, 'uid');
-  $account = user_load($uid);
+  $account = \Drupal::entityManager()->getStorage('user')->load($uid);
   $latlons = array();
   $minmaxes = array('minlat' => 0, 'minlon' => 0, 'maxlat' => 0, 'maxlon' => 0);
   $ct = 0;
@@ -461,7 +492,14 @@ function getlocations_usermap($uid) {
     $minmaxes = '';
   }
 
-  drupal_set_title(t('View user !t locations', array('!t' => $account->name)));
+  // @FIXME
+// drupal_set_title() has been removed. There are now a few ways to set the title
+// dynamically, depending on the situation.
+// 
+// 
+// @see https://www.drupal.org/node/2067859
+// drupal_set_title(t('View user !t locations', array('!t' => $account->name)));
+
 
   if ($sv_info) {
     $extra_info = array_merge($extra_info, $sv_info);
@@ -537,9 +575,9 @@ function getlocations_usersmap() {
  *
  */
 function getlocations_termmap($tid) {
-  if (module_exists('taxonomy')) {
+  if (\Drupal::moduleHandler()->moduleExists('taxonomy')) {
     $locations = getlocations_load_locations($tid, 'tid');
-    $term = taxonomy_term_load($tid);
+    $term = \Drupal::entityManager()->getStorage("taxonomy_term")->load($tid);
     $getlocations_defaults = getlocations_defaults();
     $marker = $getlocations_defaults['vocabulary_map_marker'];
     $typemarkers = getlocations_get_markertypes('vocabulary');
@@ -594,7 +632,14 @@ function getlocations_termmap($tid) {
       $minmaxes = '';
     }
 
-    drupal_set_title(t('View term !t locations', array('!t' => $term->name)));
+    // @FIXME
+// drupal_set_title() has been removed. There are now a few ways to set the title
+// dynamically, depending on the situation.
+// 
+// 
+// @see https://www.drupal.org/node/2067859
+// drupal_set_title(t('View term !t locations', array('!t' => $term->name)));
+
 
     if ($sv_info) {
       $extra_info = array_merge($extra_info, $sv_info);
@@ -618,9 +663,9 @@ function getlocations_termmap($tid) {
  *
  */
 function getlocations_commentmap($cid) {
-  if (module_exists('comment')) {
+  if (\Drupal::moduleHandler()->moduleExists('comment')) {
     $locations = getlocations_load_locations($cid, 'cid');
-    $comment = comment_load($cid);
+    $comment = \Drupal::entityManager()->getStorage('comment')->load($cid);
     $getlocations_defaults = getlocations_defaults();
     $marker = $getlocations_defaults['comment_map_marker'];
     $latlons = array();
@@ -671,7 +716,14 @@ function getlocations_commentmap($cid) {
       $minmaxes = '';
     }
 
-    drupal_set_title(t('View comment !t locations', array('!t' => $comment->subject)));
+    // @FIXME
+// drupal_set_title() has been removed. There are now a few ways to set the title
+// dynamically, depending on the situation.
+// 
+// 
+// @see https://www.drupal.org/node/2067859
+// drupal_set_title(t('View comment !t locations', array('!t' => $comment->subject)));
+
 
     if ($sv_info) {
       $extra_info = array_merge($extra_info, $sv_info);
@@ -725,7 +777,7 @@ function getlocations_typemap($type, $loc_key='', $loc_val = '') {
           $location['latitude'] = $ll[0];
           $location['longitude'] = $ll[1];
           if ($loc_key && isset($location[$loc_key])) {
-            if (drupal_strtolower($location[$loc_key]) != drupal_strtolower($loc_val)) {
+            if (\Drupal\Component\Utility\Unicode::strtolower($location[$loc_key]) != \Drupal\Component\Utility\Unicode::strtolower($loc_val)) {
               continue;
             }
           }
@@ -949,7 +1001,10 @@ function getlocations_nids($nidlist) {
  */
 function getlocations_setlocations($latlons, $minmaxes='', $type='node', $node = '', $extras = '', $width='', $height='') {
   if (! getlocations_defaults_check()) {
-    return t('You need to !c first.', array('!c' => l('Configure Getlocations', 'admin/config/services/getlocations')));
+    // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// return t('You need to !c first.', array('!c' => l('Configure Getlocations', 'admin/config/services/getlocations')));
+
   }
 
   $getlocations_defaults = getlocations_defaults();
@@ -993,7 +1048,16 @@ function getlocations_setlocations($latlons, $minmaxes='', $type='node', $node =
     $height = $getlocations_defaults['height'];
   }
 
-  return theme('getlocations_show', array('width' => $width, 'height' => $height, 'defaults' => $getlocations_defaults, 'mapid' => $mapid, 'latlons' => $latlons, 'minmaxes' => $minmaxes, 'type' => $type, 'node' => $node));
+  // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// return theme('getlocations_show', array('width' => $width, 'height' => $height, 'defaults' => $getlocations_defaults, 'mapid' => $mapid, 'latlons' => $latlons, 'minmaxes' => $minmaxes, 'type' => $type, 'node' => $node));
+
 
 }
 
@@ -1023,10 +1087,26 @@ function getlocations_setup_map($defaults, $googleonly = FALSE, $sv = FALSE, $ke
  * Sets up the call to googlemaps, css and the relevant getlocations js in html head
  */
 function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
-  global $language;
+  $language = \Drupal::languageManager()->getCurrentLanguage();
 
-  $current_js = drupal_get_js();
-  $current_css = drupal_get_css();
+  // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// $current_js = drupal_get_js();
+
+  // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// $current_css = drupal_get_css();
+
 
   static $getlocations_js_weight = 0;
   $getlocations_js_weight++;
@@ -1034,7 +1114,7 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
     $getlocations_js_weight += $defaults['getlocations_js_weight'];
   }
 
-  $key = variable_get('getlocations_api3_key', '');
+  $key = \Drupal::config('getlocations.settings')->get('getlocations_api3_key');
 
   $aggr = (getlocations_aggr_get() ? TRUE : FALSE);
 
@@ -1045,7 +1125,7 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
   }
   $query['sensor'] = (getlocations_is_mobile() ? 'true' : 'false');
 
-  $map_version = variable_get('getlocations_map_version', '');
+  $map_version = \Drupal::config('getlocations.settings')->get('getlocations_map_version');
   if ($map_version) {
     $query['v'] = $map_version;
   }
@@ -1062,7 +1142,7 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
   if ($defaults['panoramio_use']) {
     $libraries['panoramio'] = 'panoramio';
   }
-  if ($defaults['places'] || module_exists('getlocations_search')) {
+  if ($defaults['places'] || \Drupal::moduleHandler()->moduleExists('getlocations_search')) {
     $libraries['places'] = 'places';
   }
   if ($defaults['weather_use']) {
@@ -1112,21 +1192,43 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
   }
   $scheme = ($defaults['is_https'] ? 'https' : 'http');
   $gmapdomain = "maps.googleapis.com/maps/api/js";
-  $gmaplink = url($scheme . '://' . $gmapdomain, array('query' => $query));
+  // @FIXME
+// url() expects a route name or an external URI.
+// $gmaplink = url($scheme . '://' . $gmapdomain, array('query' => $query));
+
   if (!stristr($current_js, $scheme . '://' . $gmapdomain)) {
     $js_opts = array();
     $js_opts['weight'] = $getlocations_js_weight;
     $js_opts['type'] = 'external';
-    drupal_add_js($gmaplink, $js_opts);
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($gmaplink, $js_opts);
+
     $getlocations_js_weight++;
   }
   if ($defaults['use_jsapi']) {
-    $jsapilink =  url($scheme . '://' . 'www.google.com/jsapi');
+    // @FIXME
+// url() expects a route name or an external URI.
+// $jsapilink =  url($scheme . '://' . 'www.google.com/jsapi');
+
     if (!stristr($current_js, $jsapilink)) {
       $js_opts = array();
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'external';
-      drupal_add_js($jsapilink, $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($jsapilink, $js_opts);
+
       $getlocations_js_weight++;
     }
   }
@@ -1138,7 +1240,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'file';
       $js_opts['preprocess'] = $aggr;
-      drupal_add_js($geocoder_path, $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($geocoder_path, $js_opts);
+
       $getlocations_js_weight++;
     }
   }
@@ -1150,19 +1260,35 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
   $getlocations_paths = getlocations_paths_get();
 
   if (!stristr($current_css, GETLOCATIONS_PATH . '/getlocations.css')) {
-    drupal_add_css(GETLOCATIONS_PATH . '/getlocations.css');
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_css(GETLOCATIONS_PATH . '/getlocations.css');
+
   }
 
 
   // streetview only
-  if ($sv && module_exists('getlocations_fields')) {
+  if ($sv && \Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
     $getlocations_fields_paths = getlocations_fields_paths_get();
     if (!stristr($current_js, $getlocations_fields_paths['getlocations_fields_streetview_path'])) {
       $js_opts = array();
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'file';
       $js_opts['preprocess'] = $aggr;
-      drupal_add_js($getlocations_fields_paths['getlocations_fields_streetview_path'], $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_fields_paths['getlocations_fields_streetview_path'], $js_opts);
+
       $getlocations_js_weight++;
     }
     return;
@@ -1173,7 +1299,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
     $js_opts['weight'] = $getlocations_js_weight;
     $js_opts['type'] = 'file';
     $js_opts['preprocess'] = $aggr;
-    drupal_add_js($getlocations_paths['getlocations_icons_path'], $js_opts);
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_icons_path'], $js_opts);
+
     $getlocations_js_weight++;
   }
 
@@ -1183,7 +1317,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
     $js_opts['weight'] = $getlocations_js_weight;
     $js_opts['type'] = 'file';
     $js_opts['preprocess'] = $aggr;
-    drupal_add_js($markerfile, $js_opts);
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($markerfile, $js_opts);
+
     $getlocations_js_weight++;
   }
 
@@ -1192,7 +1334,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
     $js_opts['weight'] = $getlocations_js_weight;
     $js_opts['type'] = 'file';
     $js_opts['preprocess'] = $aggr;
-    drupal_add_js($getlocations_paths['markermanager_path'], $js_opts);
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['markermanager_path'], $js_opts);
+
     $getlocations_js_weight++;
   }
   elseif ($defaults['markermanagertype'] == 2 && !stristr($current_js, $getlocations_paths['markerclusterer_path'])) {
@@ -1200,7 +1350,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
     $js_opts['weight'] = $getlocations_js_weight;
     $js_opts['type'] = 'file';
     $js_opts['preprocess'] = $aggr;
-    drupal_add_js($getlocations_paths['markerclusterer_path'], $js_opts);
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['markerclusterer_path'], $js_opts);
+
     $getlocations_js_weight++;
 
     if (file_exists(GETLOCATIONS_PATH . '/getlocations.markercluster_override.inc')) {
@@ -1212,7 +1370,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
     $markerclusterer_styles = getlocations_get_markerclusterer_styles();
     $js_opts = array();
     $js_opts['type'] = 'setting';
-    drupal_add_js(array('getlocations_markerclusterer' => $markerclusterer_styles), $js_opts);
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js(array('getlocations_markerclusterer' => $markerclusterer_styles), $js_opts);
+
 
   }
 
@@ -1221,14 +1387,30 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
     $js_opts['weight'] = $getlocations_js_weight;
     $js_opts['type'] = 'file';
     $js_opts['preprocess'] = $aggr;
-    drupal_add_js($getlocations_paths['infobubble_path'], $js_opts);
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['infobubble_path'], $js_opts);
+
     $getlocations_js_weight++;
 
     $js_opts = array();
     $js_opts['weight'] = $getlocations_js_weight;
     $js_opts['type'] = 'file';
     $js_opts['preprocess'] = $aggr;
-    drupal_add_js($getlocations_paths['infobubble_extended_path'], $js_opts);
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['infobubble_extended_path'], $js_opts);
+
     $getlocations_js_weight++;
 
     if (file_exists($getlocations_paths['infobubble_options_path'])) {
@@ -1236,7 +1418,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'file';
       $js_opts['preprocess'] = $aggr;
-      drupal_add_js($getlocations_paths['infobubble_options_path'], $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['infobubble_options_path'], $js_opts);
+
       $getlocations_js_weight++;
     }
   }
@@ -1245,7 +1435,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
     $js_opts['weight'] = $getlocations_js_weight;
     $js_opts['type'] = 'file';
     $js_opts['preprocess'] = $aggr;
-    drupal_add_js($getlocations_paths['infowindow_options_path'], $js_opts);
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['infowindow_options_path'], $js_opts);
+
     $getlocations_js_weight++;
   }
 
@@ -1255,7 +1453,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
     $js_opts['weight'] = $getlocations_js_weight;
     $js_opts['type'] = 'file';
     $js_opts['preprocess'] = $aggr;
-    drupal_add_js($getlocations_paths['getlocations_path'], $js_opts);
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_path'], $js_opts);
+
     $getlocations_js_weight++;
   }
 
@@ -1265,7 +1471,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'file';
       $js_opts['preprocess'] = $aggr;
-      drupal_add_js($getlocations_paths['getlocations_polygons_path'], $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_polygons_path'], $js_opts);
+
       $getlocations_js_weight++;
     }
   }
@@ -1275,7 +1489,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'file';
       $js_opts['preprocess'] = $aggr;
-      drupal_add_js($getlocations_paths['getlocations_rectangles_path'], $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_rectangles_path'], $js_opts);
+
       $getlocations_js_weight++;
     }
   }
@@ -1285,7 +1507,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'file';
       $js_opts['preprocess'] = $aggr;
-      drupal_add_js($getlocations_paths['getlocations_circles_path'], $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_circles_path'], $js_opts);
+
       $getlocations_js_weight++;
     }
   }
@@ -1295,7 +1525,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'file';
       $js_opts['preprocess'] = $aggr;
-      drupal_add_js($getlocations_paths['getlocations_polylines_path'], $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_polylines_path'], $js_opts);
+
       $getlocations_js_weight++;
     }
   }
@@ -1306,7 +1544,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'file';
       $js_opts['preprocess'] = $aggr;
-      drupal_add_js($getlocations_paths['getlocations_search_places_path'], $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_search_places_path'], $js_opts);
+
       $getlocations_js_weight++;
     }
   }
@@ -1318,7 +1564,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'file';
       $js_opts['preprocess'] = $aggr;
-      drupal_add_js($getlocations_paths['getlocations_categories_path'], $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_categories_path'], $js_opts);
+
       $getlocations_js_weight++;
     }
   }
@@ -1330,7 +1584,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'file';
       $js_opts['preprocess'] = $aggr;
-      drupal_add_js($getlocations_paths['getlocations_preview_path'], $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_preview_path'], $js_opts);
+
       $getlocations_js_weight++;
     }
   }
@@ -1342,7 +1604,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'file';
       $js_opts['preprocess'] = $aggr;
-      drupal_add_js($geojson_path, $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($geojson_path, $js_opts);
+
       $getlocations_js_weight++;
     }
     if ($defaults['geojson_data']) {
@@ -1351,7 +1621,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
         $js_opts['weight'] = $getlocations_js_weight;
         $js_opts['type'] = 'file';
         $js_opts['preprocess'] = $aggr;
-        drupal_add_js($getlocations_paths['getlocations_geojson_path'], $js_opts);
+        // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_geojson_path'], $js_opts);
+
         $getlocations_js_weight++;
       }
     }
@@ -1362,16 +1640,32 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
     $js_opts['weight'] = $getlocations_js_weight + 10;
     $js_opts['type'] = 'file';
     $js_opts['preprocess'] = $aggr;
-    drupal_add_js($getlocations_paths['getlocations_geo_path'], $js_opts);
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_geo_path'], $js_opts);
+
     $getlocations_js_weight++;
   }
 
-  if (module_exists('field_group') && !stristr($current_js, $getlocations_paths['getlocations_field_group_path'])) {
+  if (\Drupal::moduleHandler()->moduleExists('field_group') && !stristr($current_js, $getlocations_paths['getlocations_field_group_path'])) {
     $js_opts = array();
     $js_opts['weight'] = $getlocations_js_weight + 10;
     $js_opts['type'] = 'file';
     $js_opts['preprocess'] = $aggr;
-    drupal_add_js($getlocations_paths['getlocations_field_group_path'], $js_opts);
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_field_group_path'], $js_opts);
+
     $getlocations_js_weight++;
 
   }
@@ -1383,7 +1677,15 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
       $js_opts['weight'] = $getlocations_js_weight;
       $js_opts['type'] = 'file';
       $js_opts['preprocess'] = $aggr;
-      drupal_add_js($getlocations_paths['getlocations_what3words_path'], $js_opts);
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_what3words_path'], $js_opts);
+
       $getlocations_js_weight++;
     }
   }
@@ -1399,241 +1701,246 @@ function getlocations_setup_js($defaults, $googleonly = FALSE, $sv = FALSE) {
 function getlocations_defaults($reset = FALSE) {
   global $is_https;
   $module = getlocations_get_current_supported_module();
-  $defaults = array(
-    'api_version'                   => 3,
-    'map_version'                   => '',
-    'width'                         => '300px',
-    'height'                        => '200px',
-    'zoom'                          => 3,
-    'minzoom_map'                   => -1,
-    'maxzoom_map'                   => -1,
-    'controltype'                   => 'small',
-    'zoomcontrolposition'           => '',
-    'pancontrol'                    => 1,
-    'pancontrolposition'            => '',
-    'mapcontrolposition'            => '',
-    'latlong'                       => '40,0',
-    'maptype'                       => 'Map',
-    'mtc'                           => 'standard',
-    'scale'                         => 0,
-    'overview'                      => 0,
-    'overview_opened'               => 0,
-    'scrollwheel'                   => 0,
-    'scalecontrolposition'          => '',
-    'sv_show'                       => 0, // Pegman
-    'svcontrolposition'             => '',
-    'sv_showfirst'                  => 0, // Overlay
-    'sv_heading'                    => 0,
-    'sv_zoom'                       => 1,
-    'sv_pitch'                      => 0,
-    'sv_enable'                     => 0, // switch set in getlocations_fields, applies to Views
-    'sv_addresscontrol'             => 1, // sv overlay controls
-    'sv_addresscontrolposition'     => '',
-    'sv_pancontrol'                 => 1,
-    'sv_pancontrolposition'         => '',
-    'sv_zoomcontrol'                => 'default',
-    'sv_zoomcontrolposition'        => '',
-    'sv_linkscontrol'               => 1,
-    'sv_imagedatecontrol'           => 0,
-    'sv_scrollwheel'                => 1,
-    'sv_clicktogo'                  => 1,
-    'trafficinfo'                   => 0,
-    'trafficinfo_state'             => 0,
-    'bicycleinfo'                   => 0,
-    'bicycleinfo_state'             => 0,
-    'transitinfo'                   => 0,
-    'transitinfo_state'             => 0,
-    'panoramio_use'                 => 0,
-    'panoramio_show'                => 0,
-    'panoramio_state'               => 0,
-    'places'                        => 0,
-    'poi_show'                      => 1,
-    'transit_show'                  => 1,
-    'node_map_marker'               => 'drupal',
-    'user_map_marker'               => 'drupal',
-    'vocabulary_map_marker'         => 'drupal',
-    'term_map_marker'               => 'drupal',
-    'comment_map_marker'            => 'drupal',
-    'input_map_marker'              => 'drupal',
-    'markeraction'                  => 0,
-    'markeractiontype'              => 1,
-    'markeraction_click_zoom'       => -1,
-    'markeraction_click_center'     => 0,
-    'minzoom'                       => 6,
-    'maxzoom'                       => 16,
-    'nodezoom'                      => 12,
-    'markermanagertype'             => 0,
-    'usemarkermanager'              => 0,
-    'useclustermanager'             => 0,
-    'markerclusterer_style'         => -1,
-    'markerclusterer_zoom'          => -1,
-    'markerclusterer_size'          => -1,
-    'markerclusterer_minsize'       => -1,
-    'markerclusterer_title'         => t('Click here to see more'),
-    'markerclusterer_imgpath'       => base_path() . GETLOCATIONS_PATH . '/js/images',
-    'pansetting'                    => 2,
-    'draggable'                     => 1,
-    'styles'                        => '',
-    'returnlink_page_enable'        => 0,
-    'returnlink_page_link'          => t('Return to Page'),
-    'returnlink_user_enable'        => 0,
-    'returnlink_user_link'          => t('Return to User'),
-    'returnlink_term_enable'        => 0,
-    'returnlink_term_link'          => t('Return to Term'),
-    'returnlink_comment_enable'     => 0,
-    'returnlink_comment_link'       => t('Return to Comment'),
-    'getlocations_js_weight'        => 0,
-    'custom_content_enable'         => 0,
-    'custom_content_source'         => '',
-    'use_jsapi'                     => 0,
-    'preload_data'                  => 0,
-    'is_mobile'                     => (getlocations_is_mobile() ? 1 : 0),
-    'geometry'                      => 0,
-    'visualization'                 => 0,
-    'drawing'                       => 0,
-    'adsense'                       => 0,
-    'weather_use'                   => 0,
-    'weather_show'                  => 0,
-    'weather_state'                 => 0,
-    'weather_temp'                  => 1,
-    'weather_speed'                 => 1,
-    'weather_label'                 => 0,
-    'weather_cloud'                 => 1,
-    'weather_cloud_state'           => 0,
-    'weather_clickable'             => 1,
-    'weather_info'                  => 1,
-    'map_backgroundcolor'           => '',
-    'show_maplinks'                 => 0,
-    'show_maplinks_viewport'        => 0,
-    'fullscreen'                    => 0,
-    'show_bubble_on_one_marker'     => 0,
-    'polygons_enable'               => 0,
-    'polygons_strokecolor'          => "#FF0000",
-    'polygons_strokeopacity'        => "0.8",
-    'polygons_strokeweight'         => "3",
-    'polygons_fillcolor'            => "#FF0000",
-    'polygons_fillopacity'          => "0.35",
-    'polygons_coords'               => "",
-    'polygons_clickable'            => 0,
-    'polygons_message'              => "",
-    'rectangles_enable'             => 0,
-    'rectangles_strokecolor'        => "#FF0000",
-    'rectangles_strokeopacity'      => "0.8",
-    'rectangles_strokeweight'       => "3",
-    'rectangles_fillcolor'          => "#FF0000",
-    'rectangles_fillopacity'        => "0.35",
-    'rectangles_coords'             => "",
-    'rectangles_clickable'          => 0,
-    'rectangles_message'            => "",
-    'rectangles_apply'              => 0,
-    'rectangles_dist'               => 0,
-    'circles_enable'                => 0,
-    'circles_strokecolor'           => "#FF0000",
-    'circles_strokeopacity'         => "0.8",
-    'circles_strokeweight'          => "3",
-    'circles_fillcolor'             => "#FF0000",
-    'circles_fillopacity'           => "0.35",
-    'circles_coords'                => "",
-    'circles_clickable'             => 0,
-    'circles_message'               => "",
-    'circles_radius'                => 0,
-    'circles_apply'                 => 0,
-    'polylines_enable'              => 0,
-    'polylines_strokecolor'         => "#FF0000",
-    'polylines_strokeopacity'       => "0.8",
-    'polylines_strokeweight'        => "3",
-    'polylines_coords'              => "",
-    'polylines_clickable'           => 0,
-    'polylines_message'             => "",
-    'category_method'               => 0,
-    'category_term_reference_field' => '',
-    'category_showhide_buttons'     => 0,
-    'categories'                    => '',
-    'kml_group' => array(
-      'kml_url'                     => '',
-      'kml_url_click'               => 1,
-      'kml_url_infowindow'          => 0,
-      'kml_url_viewport'            => 1,
-      'kml_url_button'              => 0,
-      'kml_url_button_label'        => 'Kml Layer',
-      'kml_url_button_state'        => 0,
-    ),
-    'map_resize'                    => 0,
-    'region_bias'                   => variable_get('site_default_country', ''),
-    'fullscreen_disable'            => 0,
-    'fullscreen_controlposition'    => '',
-    'search_places'                 => 0,
-    'search_places_size'            => 40,
-    'search_places_position'        => 'outside_above',
-    'search_places_label'           => t('Google Places Search'),
-    'search_places_placeholder'     => '',
-    'search_places_dd'              => 0,
-    'search_places_list'            => 0,
-    'getdirections_enabled'         => (module_exists('getdirections') ? 1 : 0),
-    'jquery_colorpicker_enabled'    => (module_exists('jquery_colorpicker') ? 1 : 0),
-    'geo_enable'                    => 0,
-    'extcontrol'                    => '',
-    'geojson_enable'                => 0,
-    'geojson_data'                  => '',
-    'geojson_options'               => '',
-    'nokeyboard'                    => 0,
-    'nodoubleclickzoom'             => 0,
-    'input_map_show'                => 1,
-    'highlight_enable'              => 0,
-    'highlight_strokecolor'         => "#FF0000",
-    'highlight_strokeopacity'       => "0.8",
-    'highlight_strokeweight'        => "3",
-    'highlight_fillcolor'           => "#FF0000",
-    'highlight_fillopacity'         => "0.35",
-    'highlight_radius'              => 10,
-    'getdirections_link'            => 0,
-    'gps_button'                    => 0,
-    'gps_button_label'              => '',
-    'gps_marker_title'              => '',
-    'gps_marker'                    => '',
-    'gps_bubble'                    => 0,
-    'gps_geocode'                   => 0,
-    'gps_center'                    => 0,
-    'gps_type'                      => 0,
-    'gps_zoom'                      => -1,
-    'smartip_button'                => 0,
-    'smartip_button_label'          => '',
-    'smartip_marker_title'          => '',
-    'smartip_marker'                => '',
-    'smartip_bubble'                => 0,
-    'smartip_center'                => 0,
-    'smartip_zoom'                  => -1,
-    'smartip_callback'              => 'getlocations_smartip/callback',
-    'geolocation_mobile_check'      => 1,
-    'is_https'                      => ($is_https ? 1 : 0),
-    'show_search_distance'          => 0,
-    'views_search_marker_enable'           => 0,
-    'views_search_marker'                  => 'drupal',
-    'views_search_marker_toggle'           => 0,
-    'views_search_marker_toggle_active'    => 0,
-    'views_search_radshape_enable'         => 0,
-    'views_search_radshape_strokecolor'    => '#FF0000',
-    'views_search_radshape_strokeopacity'  => '0.8',
-    'views_search_radshape_strokeweight'   => '3',
-    'views_search_radshape_fillcolor'      => '#FF0000',
-    'views_search_radshape_fillopacity'    => '0.35',
-    'views_search_radshape_toggle'         => 0,
-    'views_search_radshape_toggle_active'  => 0,
-    'views_search_center'                  => 0,
-    'geocoder_enable'                      => 0,
-    'what3words_enable'      => 0,
-    'what3words_search'      => 1,
-    'what3words_size'        => '40',
-    'what3words_map_marker'  => 'drupal',
-    'what3words_marker_show' => 0,
-    'what3words_center'      => 1,
-    'what3words_zoom'        => 12,
-    'what3words_show'        => 1,
-    'what3words_click'       => 1,
-    'what3words_path'        => 'getlocations/cb_w3w',
-    'google_old_controlstyle' => 0,
-    'google_old_controlstyle_show' => 1,
-  );
+  // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// $defaults = array(
+//     'api_version'                   => 3,
+//     'map_version'                   => '',
+//     'width'                         => '300px',
+//     'height'                        => '200px',
+//     'zoom'                          => 3,
+//     'minzoom_map'                   => -1,
+//     'maxzoom_map'                   => -1,
+//     'controltype'                   => 'small',
+//     'zoomcontrolposition'           => '',
+//     'pancontrol'                    => 1,
+//     'pancontrolposition'            => '',
+//     'mapcontrolposition'            => '',
+//     'latlong'                       => '40,0',
+//     'maptype'                       => 'Map',
+//     'mtc'                           => 'standard',
+//     'scale'                         => 0,
+//     'overview'                      => 0,
+//     'overview_opened'               => 0,
+//     'scrollwheel'                   => 0,
+//     'scalecontrolposition'          => '',
+//     'sv_show'                       => 0, // Pegman
+//     'svcontrolposition'             => '',
+//     'sv_showfirst'                  => 0, // Overlay
+//     'sv_heading'                    => 0,
+//     'sv_zoom'                       => 1,
+//     'sv_pitch'                      => 0,
+//     'sv_enable'                     => 0, // switch set in getlocations_fields, applies to Views
+//     'sv_addresscontrol'             => 1, // sv overlay controls
+//     'sv_addresscontrolposition'     => '',
+//     'sv_pancontrol'                 => 1,
+//     'sv_pancontrolposition'         => '',
+//     'sv_zoomcontrol'                => 'default',
+//     'sv_zoomcontrolposition'        => '',
+//     'sv_linkscontrol'               => 1,
+//     'sv_imagedatecontrol'           => 0,
+//     'sv_scrollwheel'                => 1,
+//     'sv_clicktogo'                  => 1,
+//     'trafficinfo'                   => 0,
+//     'trafficinfo_state'             => 0,
+//     'bicycleinfo'                   => 0,
+//     'bicycleinfo_state'             => 0,
+//     'transitinfo'                   => 0,
+//     'transitinfo_state'             => 0,
+//     'panoramio_use'                 => 0,
+//     'panoramio_show'                => 0,
+//     'panoramio_state'               => 0,
+//     'places'                        => 0,
+//     'poi_show'                      => 1,
+//     'transit_show'                  => 1,
+//     'node_map_marker'               => 'drupal',
+//     'user_map_marker'               => 'drupal',
+//     'vocabulary_map_marker'         => 'drupal',
+//     'term_map_marker'               => 'drupal',
+//     'comment_map_marker'            => 'drupal',
+//     'input_map_marker'              => 'drupal',
+//     'markeraction'                  => 0,
+//     'markeractiontype'              => 1,
+//     'markeraction_click_zoom'       => -1,
+//     'markeraction_click_center'     => 0,
+//     'minzoom'                       => 6,
+//     'maxzoom'                       => 16,
+//     'nodezoom'                      => 12,
+//     'markermanagertype'             => 0,
+//     'usemarkermanager'              => 0,
+//     'useclustermanager'             => 0,
+//     'markerclusterer_style'         => -1,
+//     'markerclusterer_zoom'          => -1,
+//     'markerclusterer_size'          => -1,
+//     'markerclusterer_minsize'       => -1,
+//     'markerclusterer_title'         => t('Click here to see more'),
+//     'markerclusterer_imgpath'       => base_path() . GETLOCATIONS_PATH . '/js/images',
+//     'pansetting'                    => 2,
+//     'draggable'                     => 1,
+//     'styles'                        => '',
+//     'returnlink_page_enable'        => 0,
+//     'returnlink_page_link'          => t('Return to Page'),
+//     'returnlink_user_enable'        => 0,
+//     'returnlink_user_link'          => t('Return to User'),
+//     'returnlink_term_enable'        => 0,
+//     'returnlink_term_link'          => t('Return to Term'),
+//     'returnlink_comment_enable'     => 0,
+//     'returnlink_comment_link'       => t('Return to Comment'),
+//     'getlocations_js_weight'        => 0,
+//     'custom_content_enable'         => 0,
+//     'custom_content_source'         => '',
+//     'use_jsapi'                     => 0,
+//     'preload_data'                  => 0,
+//     'is_mobile'                     => (getlocations_is_mobile() ? 1 : 0),
+//     'geometry'                      => 0,
+//     'visualization'                 => 0,
+//     'drawing'                       => 0,
+//     'adsense'                       => 0,
+//     'weather_use'                   => 0,
+//     'weather_show'                  => 0,
+//     'weather_state'                 => 0,
+//     'weather_temp'                  => 1,
+//     'weather_speed'                 => 1,
+//     'weather_label'                 => 0,
+//     'weather_cloud'                 => 1,
+//     'weather_cloud_state'           => 0,
+//     'weather_clickable'             => 1,
+//     'weather_info'                  => 1,
+//     'map_backgroundcolor'           => '',
+//     'show_maplinks'                 => 0,
+//     'show_maplinks_viewport'        => 0,
+//     'fullscreen'                    => 0,
+//     'show_bubble_on_one_marker'     => 0,
+//     'polygons_enable'               => 0,
+//     'polygons_strokecolor'          => "#FF0000",
+//     'polygons_strokeopacity'        => "0.8",
+//     'polygons_strokeweight'         => "3",
+//     'polygons_fillcolor'            => "#FF0000",
+//     'polygons_fillopacity'          => "0.35",
+//     'polygons_coords'               => "",
+//     'polygons_clickable'            => 0,
+//     'polygons_message'              => "",
+//     'rectangles_enable'             => 0,
+//     'rectangles_strokecolor'        => "#FF0000",
+//     'rectangles_strokeopacity'      => "0.8",
+//     'rectangles_strokeweight'       => "3",
+//     'rectangles_fillcolor'          => "#FF0000",
+//     'rectangles_fillopacity'        => "0.35",
+//     'rectangles_coords'             => "",
+//     'rectangles_clickable'          => 0,
+//     'rectangles_message'            => "",
+//     'rectangles_apply'              => 0,
+//     'rectangles_dist'               => 0,
+//     'circles_enable'                => 0,
+//     'circles_strokecolor'           => "#FF0000",
+//     'circles_strokeopacity'         => "0.8",
+//     'circles_strokeweight'          => "3",
+//     'circles_fillcolor'             => "#FF0000",
+//     'circles_fillopacity'           => "0.35",
+//     'circles_coords'                => "",
+//     'circles_clickable'             => 0,
+//     'circles_message'               => "",
+//     'circles_radius'                => 0,
+//     'circles_apply'                 => 0,
+//     'polylines_enable'              => 0,
+//     'polylines_strokecolor'         => "#FF0000",
+//     'polylines_strokeopacity'       => "0.8",
+//     'polylines_strokeweight'        => "3",
+//     'polylines_coords'              => "",
+//     'polylines_clickable'           => 0,
+//     'polylines_message'             => "",
+//     'category_method'               => 0,
+//     'category_term_reference_field' => '',
+//     'category_showhide_buttons'     => 0,
+//     'categories'                    => '',
+//     'kml_group' => array(
+//       'kml_url'                     => '',
+//       'kml_url_click'               => 1,
+//       'kml_url_infowindow'          => 0,
+//       'kml_url_viewport'            => 1,
+//       'kml_url_button'              => 0,
+//       'kml_url_button_label'        => 'Kml Layer',
+//       'kml_url_button_state'        => 0,
+//     ),
+//     'map_resize'                    => 0,
+//     'region_bias'                   => variable_get('site_default_country', ''),
+//     'fullscreen_disable'            => 0,
+//     'fullscreen_controlposition'    => '',
+//     'search_places'                 => 0,
+//     'search_places_size'            => 40,
+//     'search_places_position'        => 'outside_above',
+//     'search_places_label'           => t('Google Places Search'),
+//     'search_places_placeholder'     => '',
+//     'search_places_dd'              => 0,
+//     'search_places_list'            => 0,
+//     'getdirections_enabled'         => (module_exists('getdirections') ? 1 : 0),
+//     'jquery_colorpicker_enabled'    => (module_exists('jquery_colorpicker') ? 1 : 0),
+//     'geo_enable'                    => 0,
+//     'extcontrol'                    => '',
+//     'geojson_enable'                => 0,
+//     'geojson_data'                  => '',
+//     'geojson_options'               => '',
+//     'nokeyboard'                    => 0,
+//     'nodoubleclickzoom'             => 0,
+//     'input_map_show'                => 1,
+//     'highlight_enable'              => 0,
+//     'highlight_strokecolor'         => "#FF0000",
+//     'highlight_strokeopacity'       => "0.8",
+//     'highlight_strokeweight'        => "3",
+//     'highlight_fillcolor'           => "#FF0000",
+//     'highlight_fillopacity'         => "0.35",
+//     'highlight_radius'              => 10,
+//     'getdirections_link'            => 0,
+//     'gps_button'                    => 0,
+//     'gps_button_label'              => '',
+//     'gps_marker_title'              => '',
+//     'gps_marker'                    => '',
+//     'gps_bubble'                    => 0,
+//     'gps_geocode'                   => 0,
+//     'gps_center'                    => 0,
+//     'gps_type'                      => 0,
+//     'gps_zoom'                      => -1,
+//     'smartip_button'                => 0,
+//     'smartip_button_label'          => '',
+//     'smartip_marker_title'          => '',
+//     'smartip_marker'                => '',
+//     'smartip_bubble'                => 0,
+//     'smartip_center'                => 0,
+//     'smartip_zoom'                  => -1,
+//     'smartip_callback'              => 'getlocations_smartip/callback',
+//     'geolocation_mobile_check'      => 1,
+//     'is_https'                      => ($is_https ? 1 : 0),
+//     'show_search_distance'          => 0,
+//     'views_search_marker_enable'           => 0,
+//     'views_search_marker'                  => 'drupal',
+//     'views_search_marker_toggle'           => 0,
+//     'views_search_marker_toggle_active'    => 0,
+//     'views_search_radshape_enable'         => 0,
+//     'views_search_radshape_strokecolor'    => '#FF0000',
+//     'views_search_radshape_strokeopacity'  => '0.8',
+//     'views_search_radshape_strokeweight'   => '3',
+//     'views_search_radshape_fillcolor'      => '#FF0000',
+//     'views_search_radshape_fillopacity'    => '0.35',
+//     'views_search_radshape_toggle'         => 0,
+//     'views_search_radshape_toggle_active'  => 0,
+//     'views_search_center'                  => 0,
+//     'geocoder_enable'                      => 0,
+//     'what3words_enable'      => 0,
+//     'what3words_search'      => 1,
+//     'what3words_size'        => '40',
+//     'what3words_map_marker'  => 'drupal',
+//     'what3words_marker_show' => 0,
+//     'what3words_center'      => 1,
+//     'what3words_zoom'        => 12,
+//     'what3words_show'        => 1,
+//     'what3words_click'       => 1,
+//     'what3words_path'        => 'getlocations/cb_w3w',
+//     'google_old_controlstyle' => 0,
+//     'google_old_controlstyle_show' => 1,
+//   );
+
 
   $providers = getlocations_get_map_providers();
   $baselayers = array();
@@ -1646,7 +1953,11 @@ function getlocations_defaults($reset = FALSE) {
     return $defaults;
   }
   // ease over to new settings. Wed Sep 25 01:09:23 BST 2013
-  $getlocations_defaults = variable_get('getlocations_default', $defaults);
+  // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_defaults = \Drupal::config('getlocations.settings')->get('getlocations_default');
   if (isset($getlocations_defaults['behavior'])) {
     foreach ($getlocations_defaults['behavior'] AS $key => $val) {
       $getlocations_defaults[$key] = $val;
@@ -1664,7 +1975,7 @@ function getlocations_defaults($reset = FALSE) {
  *   Returns true or false
  */
 function getlocations_defaults_check() {
-  $check = variable_get('getlocations_default', 'xxx');
+  $check = \Drupal::config('getlocations.settings')->get('getlocations_default');
   if ($check == 'xxx') {
     return FALSE;
   }
@@ -1717,7 +2028,7 @@ function getlocations_latlon_check($latlon) {
  */
 function getlocations_places_check() {
   $found = FALSE;
-  if (module_exists('getlocations_fields')) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
     $getlocations_fields_defaults = getlocations_fields_defaults();
     if (isset($getlocations_fields_defaults['use_address']) && $getlocations_fields_defaults['use_address']) {
       $found = TRUE;
@@ -1730,7 +2041,7 @@ function getlocations_places_check() {
       $found = TRUE;
     }
   }
-  if (module_exists('getlocations_search')) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_search')) {
     $getlocations_search_defaults = getlocations_search_defaults();
     if (isset($getlocations_search_defaults['method']) && $getlocations_search_defaults['method'] == 'google_ac') {
       $found = TRUE;
@@ -1784,10 +2095,10 @@ function getlocations_get_nid($vid) {
 function getlocations_get_nid_from_lid($lid) {
   if (is_numeric($lid) && $lid) {
     $query = FALSE;
-    if (module_exists('getlocations_fields')) {
+    if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
       $query = db_select('getlocations_fields_entities', 'i')->fields('i', array('nid'))->condition('i.glid', $lid);
     }
-    elseif (module_exists('location') && (module_exists('location_cck') || module_exists('location_node'))) {
+    elseif (\Drupal::moduleHandler()->moduleExists('location') && (\Drupal::moduleHandler()->moduleExists('location_cck') || \Drupal::moduleHandler()->moduleExists('location_node'))) {
       $query = db_select('location_instance', 'i')->fields('i', array('nid'))->condition('i.lid', $lid);
     }
     if ($query) {
@@ -1809,10 +2120,10 @@ function getlocations_get_nid_from_lid($lid) {
 function getlocations_get_uid_from_lid($lid) {
   if (is_numeric($lid) && $lid) {
     $query = FALSE;
-    if (module_exists('getlocations_fields')) {
+    if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
       $query = db_select('getlocations_fields_entities', 'i')->fields('i', array('uid'))->condition('i.glid', $lid);
     }
-    elseif (module_exists('location') && module_exists('location_user')) {
+    elseif (\Drupal::moduleHandler()->moduleExists('location') && \Drupal::moduleHandler()->moduleExists('location_user')) {
       $query = db_select('location_instance', 'i')->fields('i', array('uid'))->condition('i.lid', $lid);
     }
     if ($query) {
@@ -1834,7 +2145,7 @@ function getlocations_get_uid_from_lid($lid) {
 function getlocations_get_tid_from_lid($lid) {
   if (is_numeric($lid) && $lid) {
     $query = FALSE;
-    if (module_exists('getlocations_fields')) {
+    if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
       $query = db_select('getlocations_fields_entities', 'i')->fields('i', array('tid'))->condition('i.glid', $lid);
     }
     if ($query) {
@@ -1856,7 +2167,7 @@ function getlocations_get_tid_from_lid($lid) {
 function getlocations_get_cid_from_lid($lid) {
   if (is_numeric($lid) && $lid) {
     $query = FALSE;
-    if (module_exists('getlocations_fields')) {
+    if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
       $query = db_select('getlocations_fields_entities', 'i')->fields('i', array('cid'))->condition('i.glid', $lid);
     }
     if ($query) {
@@ -1878,10 +2189,10 @@ function getlocations_get_cid_from_lid($lid) {
 function getlocations_get_type_from_lid($lid) {
   if (is_numeric($lid) && $lid) {
     $query = FALSE;
-    if (module_exists('getlocations_fields')) {
+    if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
       $query = db_select('getlocations_fields_entities', 'i')->fields('i', array('nid', 'uid', 'tid', 'cid'))->condition('i.glid', $lid);
     }
-    elseif (module_exists('location') && (module_exists('location_cck') || module_exists('location_node') || module_exists('location_user'))) {
+    elseif (\Drupal::moduleHandler()->moduleExists('location') && (\Drupal::moduleHandler()->moduleExists('location_cck') || \Drupal::moduleHandler()->moduleExists('location_node') || \Drupal::moduleHandler()->moduleExists('location_user'))) {
       $query = db_select('location_instance', 'i')->fields('i', array('nid', 'uid'))->condition('i.lid', $lid);
     }
     if ($query) {
@@ -1893,10 +2204,10 @@ function getlocations_get_type_from_lid($lid) {
       elseif (isset($row['uid']) && $row['uid'] > 0) {
         $type = 'user';
       }
-      elseif (isset($row['tid']) && $row['tid'] > 0 && module_exists('taxonomy')) {
+      elseif (isset($row['tid']) && $row['tid'] > 0 && \Drupal::moduleHandler()->moduleExists('taxonomy')) {
         $type = 'vocabulary';
       }
-      elseif (isset($row['cid']) && $row['cid'] > 0 && module_exists('comment')) {
+      elseif (isset($row['cid']) && $row['cid'] > 0 && \Drupal::moduleHandler()->moduleExists('comment')) {
         $type = 'comment';
       }
       return $type;
@@ -1916,26 +2227,38 @@ function getlocations_get_type_from_lid($lid) {
 function getlocations_get_path_from_lid($lid) {
   if (is_numeric($lid) && $lid) {
     $query = FALSE;
-    if (module_exists('getlocations_fields')) {
+    if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
       $query = db_select('getlocations_fields_entities', 'i')->fields('i', array('nid', 'uid', 'tid', 'cid'))->condition('i.glid', $lid);
     }
-    elseif (module_exists('location') && (module_exists('location_cck') || module_exists('location_node') || module_exists('location_user'))) {
+    elseif (\Drupal::moduleHandler()->moduleExists('location') && (\Drupal::moduleHandler()->moduleExists('location_cck') || \Drupal::moduleHandler()->moduleExists('location_node') || \Drupal::moduleHandler()->moduleExists('location_user'))) {
       $query = db_select('location_instance', 'i')->fields('i', array('nid', 'uid'))->condition('i.lid', $lid);
     }
     if ($query) {
       $row = $query->execute()->fetchAssoc();
       $path = '';
       if (isset($row['nid']) && $row['nid'] > 0) {
-        $path = url('node/' . $row['nid']);
+        // @FIXME
+// url() expects a route name or an external URI.
+// $path = url('node/' . $row['nid']);
+
       }
       elseif (isset($row['uid']) && $row['uid'] > 0) {
-        $path = url('user/' . $row['uid']);
+        // @FIXME
+// url() expects a route name or an external URI.
+// $path = url('user/' . $row['uid']);
+
       }
-      elseif (isset($row['tid']) && $row['tid'] > 0 && module_exists('taxonomy')) {
-        $path = url('taxonomy/term/' . $row['tid']);
+      elseif (isset($row['tid']) && $row['tid'] > 0 && \Drupal::moduleHandler()->moduleExists('taxonomy')) {
+        // @FIXME
+// url() expects a route name or an external URI.
+// $path = url('taxonomy/term/' . $row['tid']);
+
       }
-      elseif (isset($row['cid']) && $row['cid'] > 0 && module_exists('comment')) {
-        $path = url('comment/' . $row['cid']);
+      elseif (isset($row['cid']) && $row['cid'] > 0 && \Drupal::moduleHandler()->moduleExists('comment')) {
+        // @FIXME
+// url() expects a route name or an external URI.
+// $path = url('comment/' . $row['cid']);
+
       }
       return $path;
     }
@@ -1976,7 +2299,7 @@ function getlocations_getinfo($lid, $lidkey, $extra=FALSE) {
 
   $content = FALSE;
   if ($lid > 0) {
-    if (module_exists('getlocations_fields') || module_exists('location')) {
+    if (\Drupal::moduleHandler()->moduleExists('getlocations_fields') || \Drupal::moduleHandler()->moduleExists('location')) {
       $location = getlocations_load_location($lid);
       $location['nid'] = 0;
       $location['uid'] = 0;
@@ -1994,18 +2317,18 @@ function getlocations_getinfo($lid, $lidkey, $extra=FALSE) {
           $location['uid'] = $uid;
         }
       }
-      elseif ($type == 'vocabulary' && module_exists('taxonomy')) {
+      elseif ($type == 'vocabulary' && \Drupal::moduleHandler()->moduleExists('taxonomy')) {
         if ($tid = getlocations_get_tid_from_lid($lid)) {
           $location['tid'] = $tid;
         }
       }
-      elseif ($type == 'comment' && module_exists('comment')) {
+      elseif ($type == 'comment' && \Drupal::moduleHandler()->moduleExists('comment')) {
         if ($cid = getlocations_get_cid_from_lid($lid)) {
           $location['cid'] = $cid;
         }
       }
     }
-    elseif (module_exists('geofield') || module_exists('geolocation')) {
+    elseif (\Drupal::moduleHandler()->moduleExists('geofield') || \Drupal::moduleHandler()->moduleExists('geolocation')) {
       $locations = getlocations_load_locations($lid, $lidkey);
       $location = $locations[0];
     }
@@ -2030,7 +2353,16 @@ function getlocations_getinfo($lid, $lidkey, $extra=FALSE) {
       }
     }
 
-    $content = theme('getlocations_adinfo', array('location' => $location));
+    // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $content = theme('getlocations_adinfo', array('location' => $location));
+
   }
   return $content;
 
@@ -2056,7 +2388,16 @@ function getlocations_lidinfo() {
  * @return string path
  */
 function getlocations_getlidinfo($lid, $lidkey) {
-  $content = theme('getlocations_lidinfo', array('lid' => $lid, 'lidkey' => $lidkey));
+  // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $content = theme('getlocations_lidinfo', array('lid' => $lid, 'lidkey' => $lidkey));
+
   return $content;
 }
 
@@ -2111,7 +2452,16 @@ function getlocations_markerinfo() {
   $content['data'] = $data;
   $content['linktype'] = $linktype;
   $content['cat'] = $cat;
-  $output = theme('getlocations_marker_box', array('content' => $content));
+  // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $output = theme('getlocations_marker_box', array('content' => $content));
+
   print $output;
   exit;
 }
@@ -2140,7 +2490,11 @@ function getlocations_cb_w3w() {
 function getlocations_cb_w3w_get($data, $type) {
   $types = array('w3w', 'position');
   if (in_array($type, $types)) {
-    $what3words_lic = variable_get('getlocations_what3words_lic', array('key' => '', 'url' => 'http://api.what3words.com'));
+    // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$what3words_lic = \Drupal::config('getlocations.settings')->get('getlocations_what3words_lic');
     $key = $what3words_lic['key'];
     if ($key) {
       $url = $what3words_lic['url'] . '/' . $type;
@@ -2156,7 +2510,15 @@ function getlocations_cb_w3w_get($data, $type) {
         $datastr .= '&string=' . $data;
       }
       $opts['data'] = $datastr;
-      $response = drupal_http_request($url, $opts);
+      // @FIXME
+// drupal_http_request() has been replaced by the Guzzle HTTP client, which is bundled
+// with Drupal core.
+// 
+// 
+// @see https://www.drupal.org/node/1862446
+// @see http://docs.guzzlephp.org/en/latest
+// $response = drupal_http_request($url, $opts);
+
       if ($response->code == '200') {
         return $response->data;
       }
@@ -2177,7 +2539,7 @@ function getlocations_get_marker_titles($reset = FALSE) {
       return $titles;
     }
 
-    $cached = cache_get('getlocations_marker_titles', 'cache');
+    $cached = \Drupal::cache('cache')->get('getlocations_marker_titles');
     if (!empty($cached)) {
       $titles = $cached->data;
       if (is_array($titles)) {
@@ -2188,7 +2550,7 @@ function getlocations_get_marker_titles($reset = FALSE) {
 
   module_load_include('inc', 'getlocations', 'getlocations.markerinfo');
   $titles = _getlocations_get_marker_titles();
-  cache_set('getlocations_marker_titles', $titles, 'cache');
+  \Drupal::cache('cache')->set('getlocations_marker_titles', $titles);
   return $titles;
 }
 
@@ -2202,7 +2564,7 @@ function getlocations_get_icondata($reset = FALSE) {
     return $icons;
   }
 
-  $icons = cache_get('getlocations_icondata');
+  $icons = \Drupal::cache()->get('getlocations_icondata');
   if ($icons) {
     $icons = $icons->data;
   }
@@ -2212,7 +2574,7 @@ function getlocations_get_icondata($reset = FALSE) {
     $icons = _getlocations_get_icondata();
   }
   if ($icons) {
-    cache_set('getlocations_icondata', $icons, 'cache');
+    \Drupal::cache('cache')->set('getlocations_icondata', $icons);
   }
   return $icons;
 }
@@ -2223,7 +2585,7 @@ function getlocations_get_icondata($reset = FALSE) {
  */
 function getlocations_regenerate_markers() {
   // This often fails in cli mode, so bail.
-  if (drupal_is_cli()) {
+  if ((PHP_SAPI === "cli")) {
     return;
   }
 
@@ -2232,8 +2594,8 @@ function getlocations_regenerate_markers() {
     $contents = '';
 
     $contents .= "// Getlocations marker image data.\n";
-    $contents .= "Drupal.getlocations.iconpath = " . drupal_json_encode(base_path()) . ";\n";
-    $contents .= "Drupal.getlocations.icondata = " . drupal_json_encode($icons) . ";\n";
+    $contents .= "Drupal.getlocations.iconpath = " . \Drupal\Component\Serialization\Json::encode(base_path()) . ";\n";
+    $contents .= "Drupal.getlocations.icondata = " . \Drupal\Component\Serialization\Json::encode($icons) . ";\n";
 
     // Create the js/ within the files folder.
     $jspath = getlocations_get_markerfile(TRUE, FALSE);
@@ -2245,14 +2607,14 @@ function getlocations_regenerate_markers() {
     else {
       // failed
       drupal_set_message(t('Getlocations is unable to save the marker configuration, so the markers will not work. Please check file system permissions of %filepath!', array('%filepath' => $jsfile)), 'error');
-      watchdog('getlocations', 'Getlocations write error when saving the marker configuration to %filepath.', array('%filepath' => $jsfile), WATCHDOG_ERROR);
+      \Drupal::logger('getlocations')->error('Getlocations write error when saving the marker configuration to %filepath.', array('%filepath' => $jsfile));
       return FALSE;
     }
   }
   else {
     // no markers found
       drupal_set_message(t('No markers found, you need to install some markers, please see the project page for details.'), 'error');
-      watchdog('getlocations', 'No markers found.', array(), WATCHDOG_ERROR);
+      \Drupal::logger('getlocations')->error('No markers found.', array());
       return FALSE;
   }
   return TRUE;
@@ -2267,13 +2629,13 @@ function getlocations_get_markerfile($dir=FALSE, $check=TRUE) {
   if (file_default_scheme() != 'public') {
     // private
     $markerpath = '';
-    $markerfile = variable_get('getlocations_private_markerfile', '');
+    $markerfile = \Drupal::config('getlocations.settings')->get('getlocations_private_markerfile');
     if ($markerfile && preg_match("~^(.*)/getlocations_markers.js~", $markerfile, $matches)) {
       $markerpath = $matches[1];
     }
   }
   else {
-    $markerpath = file_stream_wrapper_get_instance_by_scheme(file_default_scheme())->getDirectoryPath() . '/getlocations';
+    $markerpath = \Drupal::service("stream_wrapper_manager")->getViaScheme(file_default_scheme())->getDirectoryPath() . '/getlocations';
     $markerfile = '';
     if ($markerpath) {
       $markerfile = $markerpath . '/getlocations_markers.js';
@@ -2404,7 +2766,16 @@ function getlocations_box() {
     $content .= getlocations_nids($a2);
   }
 
-  $output = theme('getlocations_box', array('content' => $content));
+  // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $output = theme('getlocations_box', array('content' => $content));
+
   print $output;
   exit;
 }
@@ -2598,8 +2969,8 @@ function getlocations_check_entity_type($entity_type = '', $bundle = '') {
  *
  */
 function getlocations_get_vocabularies() {
-  if (module_exists('taxonomy')) {
-    $vocabularies = taxonomy_get_vocabularies();
+  if (\Drupal::moduleHandler()->moduleExists('taxonomy')) {
+    $vocabularies = \Drupal\taxonomy\Entity\Vocabulary::loadMultiple();
     $options = array();
     if (count($vocabularies)) {
       foreach ($vocabularies as $vid => $vocabulary) {
@@ -2621,8 +2992,8 @@ function getlocations_get_vocabularies() {
  *
  */
 function getlocations_get_machine_vocabularies() {
-  if (module_exists('taxonomy')) {
-    $vocabularies = taxonomy_get_vocabularies();
+  if (\Drupal::moduleHandler()->moduleExists('taxonomy')) {
+    $vocabularies = \Drupal\taxonomy\Entity\Vocabulary::loadMultiple();
     $options = array();
     if (count($vocabularies)) {
       foreach ($vocabularies as $vid => $vocabulary) {
@@ -2644,7 +3015,7 @@ function getlocations_get_machine_vocabularies() {
  *
  */
 function getlocations_check_vocabulary($machine_name) {
-  if (module_exists('taxonomy')) {
+  if (\Drupal::moduleHandler()->moduleExists('taxonomy')) {
     return getlocations_check_entity_type('taxonomy_term', $machine_name);
   }
   return FALSE;
@@ -2690,7 +3061,11 @@ function getlocations_get_markertypes($type) {
   $markertypes = array();
   if ($type == 'node') {
     $default_marker = $getlocations_defaults['node_map_marker'];
-    $getlocations_node_marker = variable_get('getlocations_node_marker', array('enable' => 0));
+    // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_node_marker = \Drupal::config('getlocations.settings')->get('getlocations_node_marker');
     if ($getlocations_node_marker['enable']) {
       if ($content_types = getlocations_get_types()) {
         foreach ($content_types AS $content_type => $name ) {
@@ -2708,10 +3083,14 @@ function getlocations_get_markertypes($type) {
     }
     return $markertypes;
   }
-  elseif ($type == 'vocabulary' && module_exists('taxonomy')) {
+  elseif ($type == 'vocabulary' && \Drupal::moduleHandler()->moduleExists('taxonomy')) {
     $default_marker = $getlocations_defaults['vocabulary_map_marker'];
     $vocabularies = getlocations_get_vocabularies();
-    $getlocations_vocabulary_marker = variable_get('getlocations_vocabulary_marker', array('enable' => 0));
+    // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_vocabulary_marker = \Drupal::config('getlocations.settings')->get('getlocations_vocabulary_marker');
     foreach ($vocabularies AS $vid => $vocabulary) {
       if ($getlocations_vocabulary_marker['enable'] && isset($getlocations_vocabulary_marker['vocabulary'][$vid]['map_marker'])) {
         $markertypes[$vid] = $getlocations_vocabulary_marker['vocabulary'][$vid]['map_marker'];
@@ -2722,14 +3101,18 @@ function getlocations_get_markertypes($type) {
     }
     return $markertypes;
   }
-  elseif ($type == 'term' && module_exists('taxonomy')) {
+  elseif ($type == 'term' && \Drupal::moduleHandler()->moduleExists('taxonomy')) {
     $default_marker = $getlocations_defaults['term_map_marker'];
-    $getlocations_term_marker = variable_get('getlocations_term_marker', array('enable' => 0, 'vids' => 0, 'max_depth' => ''));
+    // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_term_marker = \Drupal::config('getlocations.settings')->get('getlocations_term_marker');
     if ($getlocations_term_marker['enable'] && $getlocations_term_marker['vids'] ) {
       $depth = is_numeric($getlocations_term_marker['max_depth']) && $getlocations_term_marker['max_depth'] > 0 ? $getlocations_term_marker['max_depth'] : NULL;
       $vids = $getlocations_term_marker['vids'];
       foreach ($vids AS $vid) {
-        $terms = taxonomy_get_tree($vid, 0, $depth);
+        $terms = \Drupal::entityManager()->getStorage("taxonomy_term")->loadTree($vid, 0, $depth);
         foreach ($terms AS $term) {
           if (isset($getlocations_term_marker['vid'][$vid]['term'][$term->tid]['map_marker'])) {
             $markertypes[$term->tid] = $getlocations_term_marker['vid'][$vid]['term'][$term->tid]['map_marker'];
@@ -2774,108 +3157,111 @@ function getlocations_get_nodetype($nid) {
  *
  */
 function getlocations_js_settings_do($defaults, $latlons, $minmaxes, $mapid, $inputmap = FALSE, $extcontrol = '') {
-  global $language;
+  $language = \Drupal::languageManager()->getCurrentLanguage();
   $lla = explode(',', $defaults['latlong']);
   $lat = $lla[0];
   $lng = $lla[1];
-  $settings = array(
-    $mapid => array(
-      'lat'                       => trim($lat),
-      'lng'                       => trim($lng),
-      'locale_prefix'             => $language->prefix,
-      'zoom'                      => $defaults['zoom'],
-      'minzoom_map'               => $defaults['minzoom_map'],
-      'maxzoom_map'               => $defaults['maxzoom_map'],
-      'maptype'                   => $defaults['maptype'],
-      'controltype'               => $defaults['controltype'],
-      'mtc'                       => $defaults['mtc'],
-      'baselayers'                => $defaults['baselayers'],
-      'scale'                     => $defaults['scale'],
-      'overview'                  => $defaults['overview'],
-      'overview_opened'           => $defaults['overview_opened'],
-      'scrollwheel'               => $defaults['scrollwheel'],
-      'trafficinfo'               => $defaults['trafficinfo'],
-      'trafficinfo_state'         => $defaults['trafficinfo_state'],
-      'bicycleinfo'               => $defaults['bicycleinfo'],
-      'bicycleinfo_state'         => $defaults['bicycleinfo_state'],
-      'transitinfo'               => $defaults['transitinfo'],
-      'transitinfo_state'         => $defaults['transitinfo_state'],
-      'sv_show'                   => $defaults['sv_show'],
-      'sv_showfirst'              => $defaults['sv_showfirst'],
-      'sv_heading'                => $defaults['sv_heading'],
-      'sv_zoom'                   => $defaults['sv_zoom'],
-      'sv_pitch'                  => $defaults['sv_pitch'],
-      'pancontrol'                => $defaults['pancontrol'],
-      'panoramio_use'             => $defaults['panoramio_use'],
-      'panoramio_show'            => $defaults['panoramio_show'],
-      'panoramio_state'           => $defaults['panoramio_state'],
-      'weather_use'               => $defaults['weather_use'],
-      'poi_show'                  => $defaults['poi_show'],
-      'transit_show'              => $defaults['transit_show'],
-      'map_marker'                => $defaults['node_map_marker'],
-      'markeraction'              => $defaults['markeraction'],
-      'markeractiontype'          => $defaults['markeractiontype'],
-      'markeraction_click_zoom'   => $defaults['markeraction_click_zoom'],
-      'markeraction_click_center' => $defaults['markeraction_click_center'],
-      'minzoom'                   => $defaults['minzoom'],
-      'maxzoom'                   => $defaults['maxzoom'],
-      'nodezoom'                  => $defaults['nodezoom'],
-      'markermanagertype'         => $defaults['markermanagertype'],
-      'usemarkermanager'          => $defaults['usemarkermanager'],
-      'useclustermanager'         => $defaults['useclustermanager'],
-      'markerclusterer_style'     => $defaults['markerclusterer_style'],
-      'markerclusterer_zoom'      => $defaults['markerclusterer_zoom'],
-      'markerclusterer_size'      => $defaults['markerclusterer_size'],
-      'markerclusterer_minsize'   => $defaults['markerclusterer_minsize'],
-      'markerclusterer_title'     => $defaults['markerclusterer_title'],
-      'markerclusterer_imgpath'   => $defaults['markerclusterer_imgpath'],
-      'pansetting'                => $defaults['pansetting'],
-      'draggable'                 => $defaults['draggable'],
-      'styles'                    => $defaults['styles'],
-      'inputmap'                  => ($inputmap ? 1 : 0),
-      'extcontrol'                => $extcontrol,
-      'custom_content_enable'     => $defaults['custom_content_enable'],
-      'preload_data'              => $defaults['preload_data'],
-      'is_mobile'                 => (getlocations_is_mobile() ? 1 : 0),
-      'weather_use'               => $defaults['weather_use'],
-      'map_backgroundcolor'       => $defaults['map_backgroundcolor'],
-      'show_maplinks'             => $defaults['show_maplinks'],
-      'show_maplinks_viewport'    => $defaults['show_maplinks_viewport'],
-      'js_path'                   => base_path() . GETLOCATIONS_PATH . '/js/',
-      'images_path'               => base_path() . GETLOCATIONS_PATH . '/images/',
-      'info_path'                 => url("getlocations_cb/info"),
-      'lidinfo_path'              => url("getlocations_cb/lidinfo"),
-      'fullscreen'                => $defaults['fullscreen'],
-      'show_bubble_on_one_marker' => $defaults['show_bubble_on_one_marker'],
-      'kml_url'                   => $defaults['kml_group']['kml_url'],
-      'fullscreen_disable'        => $defaults['fullscreen_disable'],
-      'fullscreen_controlposition' => $defaults['fullscreen_controlposition'],
-      'places'                    => $defaults['places'],
-      'search_places'             => $defaults['search_places'],
-      'getdirections_enabled'     => $defaults['getdirections_enabled'],
-      'is_https'                  => $defaults['is_https'],
-      'geojson_enable'            => $defaults['geojson_enable'],
-      'nokeyboard'                => $defaults['nokeyboard'],
-      'nodoubleclickzoom'         => $defaults['nodoubleclickzoom'],
-      'zoomcontrolposition'       => $defaults['zoomcontrolposition'],
-      'mapcontrolposition'        => $defaults['mapcontrolposition'],
-      'pancontrolposition'        => $defaults['pancontrolposition'],
-      'scalecontrolposition'      => $defaults['scalecontrolposition'],
-      'svcontrolposition'         => $defaults['svcontrolposition'],
-      'sv_addresscontrol'         => $defaults['sv_addresscontrol'], // sv overlay controls
-      'sv_addresscontrolposition' => $defaults['sv_addresscontrolposition'],
-      'sv_pancontrol'             => $defaults['sv_pancontrol'],
-      'sv_pancontrolposition'     => $defaults['sv_pancontrolposition'],
-      'sv_zoomcontrol'            => $defaults['sv_zoomcontrol'],
-      'sv_zoomcontrolposition'    => $defaults['sv_zoomcontrolposition'],
-      'sv_linkscontrol'           => $defaults['sv_linkscontrol'],
-      'sv_imagedatecontrol'       => $defaults['sv_imagedatecontrol'],
-      'sv_scrollwheel'            => $defaults['sv_scrollwheel'],
-      'sv_clicktogo'              => $defaults['sv_clicktogo'],
-      'input_map_show'            => $defaults['input_map_show'],
-      'google_old_controlstyle'   => $defaults['google_old_controlstyle'],
-    ),
-  );
+  // @FIXME
+// url() expects a route name or an external URI.
+// $settings = array(
+//     $mapid => array(
+//       'lat'                       => trim($lat),
+//       'lng'                       => trim($lng),
+//       'locale_prefix'             => $language->prefix,
+//       'zoom'                      => $defaults['zoom'],
+//       'minzoom_map'               => $defaults['minzoom_map'],
+//       'maxzoom_map'               => $defaults['maxzoom_map'],
+//       'maptype'                   => $defaults['maptype'],
+//       'controltype'               => $defaults['controltype'],
+//       'mtc'                       => $defaults['mtc'],
+//       'baselayers'                => $defaults['baselayers'],
+//       'scale'                     => $defaults['scale'],
+//       'overview'                  => $defaults['overview'],
+//       'overview_opened'           => $defaults['overview_opened'],
+//       'scrollwheel'               => $defaults['scrollwheel'],
+//       'trafficinfo'               => $defaults['trafficinfo'],
+//       'trafficinfo_state'         => $defaults['trafficinfo_state'],
+//       'bicycleinfo'               => $defaults['bicycleinfo'],
+//       'bicycleinfo_state'         => $defaults['bicycleinfo_state'],
+//       'transitinfo'               => $defaults['transitinfo'],
+//       'transitinfo_state'         => $defaults['transitinfo_state'],
+//       'sv_show'                   => $defaults['sv_show'],
+//       'sv_showfirst'              => $defaults['sv_showfirst'],
+//       'sv_heading'                => $defaults['sv_heading'],
+//       'sv_zoom'                   => $defaults['sv_zoom'],
+//       'sv_pitch'                  => $defaults['sv_pitch'],
+//       'pancontrol'                => $defaults['pancontrol'],
+//       'panoramio_use'             => $defaults['panoramio_use'],
+//       'panoramio_show'            => $defaults['panoramio_show'],
+//       'panoramio_state'           => $defaults['panoramio_state'],
+//       'weather_use'               => $defaults['weather_use'],
+//       'poi_show'                  => $defaults['poi_show'],
+//       'transit_show'              => $defaults['transit_show'],
+//       'map_marker'                => $defaults['node_map_marker'],
+//       'markeraction'              => $defaults['markeraction'],
+//       'markeractiontype'          => $defaults['markeractiontype'],
+//       'markeraction_click_zoom'   => $defaults['markeraction_click_zoom'],
+//       'markeraction_click_center' => $defaults['markeraction_click_center'],
+//       'minzoom'                   => $defaults['minzoom'],
+//       'maxzoom'                   => $defaults['maxzoom'],
+//       'nodezoom'                  => $defaults['nodezoom'],
+//       'markermanagertype'         => $defaults['markermanagertype'],
+//       'usemarkermanager'          => $defaults['usemarkermanager'],
+//       'useclustermanager'         => $defaults['useclustermanager'],
+//       'markerclusterer_style'     => $defaults['markerclusterer_style'],
+//       'markerclusterer_zoom'      => $defaults['markerclusterer_zoom'],
+//       'markerclusterer_size'      => $defaults['markerclusterer_size'],
+//       'markerclusterer_minsize'   => $defaults['markerclusterer_minsize'],
+//       'markerclusterer_title'     => $defaults['markerclusterer_title'],
+//       'markerclusterer_imgpath'   => $defaults['markerclusterer_imgpath'],
+//       'pansetting'                => $defaults['pansetting'],
+//       'draggable'                 => $defaults['draggable'],
+//       'styles'                    => $defaults['styles'],
+//       'inputmap'                  => ($inputmap ? 1 : 0),
+//       'extcontrol'                => $extcontrol,
+//       'custom_content_enable'     => $defaults['custom_content_enable'],
+//       'preload_data'              => $defaults['preload_data'],
+//       'is_mobile'                 => (getlocations_is_mobile() ? 1 : 0),
+//       'weather_use'               => $defaults['weather_use'],
+//       'map_backgroundcolor'       => $defaults['map_backgroundcolor'],
+//       'show_maplinks'             => $defaults['show_maplinks'],
+//       'show_maplinks_viewport'    => $defaults['show_maplinks_viewport'],
+//       'js_path'                   => base_path() . GETLOCATIONS_PATH . '/js/',
+//       'images_path'               => base_path() . GETLOCATIONS_PATH . '/images/',
+//       'info_path'                 => url("getlocations_cb/info"),
+//       'lidinfo_path'              => url("getlocations_cb/lidinfo"),
+//       'fullscreen'                => $defaults['fullscreen'],
+//       'show_bubble_on_one_marker' => $defaults['show_bubble_on_one_marker'],
+//       'kml_url'                   => $defaults['kml_group']['kml_url'],
+//       'fullscreen_disable'        => $defaults['fullscreen_disable'],
+//       'fullscreen_controlposition' => $defaults['fullscreen_controlposition'],
+//       'places'                    => $defaults['places'],
+//       'search_places'             => $defaults['search_places'],
+//       'getdirections_enabled'     => $defaults['getdirections_enabled'],
+//       'is_https'                  => $defaults['is_https'],
+//       'geojson_enable'            => $defaults['geojson_enable'],
+//       'nokeyboard'                => $defaults['nokeyboard'],
+//       'nodoubleclickzoom'         => $defaults['nodoubleclickzoom'],
+//       'zoomcontrolposition'       => $defaults['zoomcontrolposition'],
+//       'mapcontrolposition'        => $defaults['mapcontrolposition'],
+//       'pancontrolposition'        => $defaults['pancontrolposition'],
+//       'scalecontrolposition'      => $defaults['scalecontrolposition'],
+//       'svcontrolposition'         => $defaults['svcontrolposition'],
+//       'sv_addresscontrol'         => $defaults['sv_addresscontrol'], // sv overlay controls
+//       'sv_addresscontrolposition' => $defaults['sv_addresscontrolposition'],
+//       'sv_pancontrol'             => $defaults['sv_pancontrol'],
+//       'sv_pancontrolposition'     => $defaults['sv_pancontrolposition'],
+//       'sv_zoomcontrol'            => $defaults['sv_zoomcontrol'],
+//       'sv_zoomcontrolposition'    => $defaults['sv_zoomcontrolposition'],
+//       'sv_linkscontrol'           => $defaults['sv_linkscontrol'],
+//       'sv_imagedatecontrol'       => $defaults['sv_imagedatecontrol'],
+//       'sv_scrollwheel'            => $defaults['sv_scrollwheel'],
+//       'sv_clicktogo'              => $defaults['sv_clicktogo'],
+//       'input_map_show'            => $defaults['input_map_show'],
+//       'google_old_controlstyle'   => $defaults['google_old_controlstyle'],
+//     ),
+//   );
+
   // only set these if wanted
   if ($defaults['kml_group']['kml_url']) {
     $settings[$mapid]['kml_url_click']        = $defaults['kml_group']['kml_url_click'];
@@ -2955,7 +3341,11 @@ function getlocations_js_settings_do($defaults, $latlons, $minmaxes, $mapid, $in
   $settings[$mapid]['geocoder_enable'] = $defaults['geocoder_enable'];
 
   // What3Words
-  $what3words_lic = variable_get('getlocations_what3words_lic', array('key' => '', 'url' => 'http://api.what3words.com'));
+  // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$what3words_lic = \Drupal::config('getlocations.settings')->get('getlocations_what3words_lic');
   if ($what3words_lic['key'] && $defaults['what3words_enable']) {
     #$settings[$mapid]['what3words_key'] = $what3words_lic['key'];
     $settings[$mapid]['what3words_enable']      = $defaults['what3words_enable'];
@@ -2966,7 +3356,10 @@ function getlocations_js_settings_do($defaults, $latlons, $minmaxes, $mapid, $in
     $settings[$mapid]['what3words_show']        = $defaults['what3words_show'];
     $settings[$mapid]['what3words_marker_show'] = $defaults['what3words_marker_show'];
     $settings[$mapid]['what3words_click']       = $defaults['what3words_click'];
-    $settings[$mapid]['what3words_path']        = url($defaults['what3words_path']);
+    // @FIXME
+// url() expects a route name or an external URI.
+// $settings[$mapid]['what3words_path']        = url($defaults['what3words_path']);
+
   }
 
   // baselayer settings
@@ -2979,9 +3372,17 @@ function getlocations_js_settings_do($defaults, $latlons, $minmaxes, $mapid, $in
   }
 
   // field group support;
-  $settings[$mapid]['field_group_enable'] = (module_exists('field_group') ? 1 : 0);
+  $settings[$mapid]['field_group_enable'] = (\Drupal::moduleHandler()->moduleExists('field_group') ? 1 : 0);
 
-  drupal_add_js(array('getlocations' => $settings), 'setting');
+  // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js(array('getlocations' => $settings), 'setting');
+
 
   if ($defaults['preload_data']) {
     $info = array();
@@ -3012,7 +3413,15 @@ function getlocations_js_settings_do($defaults, $latlons, $minmaxes, $mapid, $in
     $info_settings = array(
       $mapid => $info,
     );
-    drupal_add_js(array('getlocations_info' => $info_settings), 'setting');
+    // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js(array('getlocations_info' => $info_settings), 'setting');
+
   }
 
   // polygons
@@ -3022,7 +3431,15 @@ function getlocations_js_settings_do($defaults, $latlons, $minmaxes, $mapid, $in
       $polygon_settings = array(
         $mapid => $polygons,
       );
-      drupal_add_js(array('getlocations_polygons' => $polygon_settings), 'setting');
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js(array('getlocations_polygons' => $polygon_settings), 'setting');
+
     }
   }
   // rectangles
@@ -3044,7 +3461,15 @@ function getlocations_js_settings_do($defaults, $latlons, $minmaxes, $mapid, $in
       $rectangle_settings = array(
         $mapid => $rectangles,
       );
-      drupal_add_js(array('getlocations_rectangles' => $rectangle_settings), 'setting');
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js(array('getlocations_rectangles' => $rectangle_settings), 'setting');
+
     }
   }
   // circles
@@ -3064,7 +3489,15 @@ function getlocations_js_settings_do($defaults, $latlons, $minmaxes, $mapid, $in
       $circle_settings = array(
         $mapid => $circles,
       );
-      drupal_add_js(array('getlocations_circles' => $circle_settings), 'setting');
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js(array('getlocations_circles' => $circle_settings), 'setting');
+
     }
   }
   // polylines
@@ -3074,16 +3507,24 @@ function getlocations_js_settings_do($defaults, $latlons, $minmaxes, $mapid, $in
       $polyline_settings = array(
         $mapid => $polylines,
       );
-      drupal_add_js(array('getlocations_polylines' => $polyline_settings), 'setting');
+      // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js(array('getlocations_polylines' => $polyline_settings), 'setting');
+
     }
   }
   // getlocations_gps
-  if (module_exists('getlocations_gps') && isset($defaults['gps_button']) && $defaults['gps_button']) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_gps') && isset($defaults['gps_button']) && $defaults['gps_button']) {
     $getlocations_gps_defaults = getlocations_gps_defaults($defaults);
     getlocations_gps_js_settings_do($getlocations_gps_defaults, $mapid);
   }
   // getlocations_smartip
-  if (module_exists('getlocations_smartip') && isset($defaults['smartip_button']) && $defaults['smartip_button']) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_smartip') && isset($defaults['smartip_button']) && $defaults['smartip_button']) {
     $getlocations_smartip_defaults = getlocations_smartip_defaults($defaults);
     getlocations_smartip_js_settings_do($getlocations_smartip_defaults, $mapid);
   }
@@ -3100,16 +3541,16 @@ function getlocations_js_settings_do($defaults, $latlons, $minmaxes, $mapid, $in
  */
 function getlocations_load_locations($id, $key = 'vid') {
   $locations = '';
-  if (module_exists('getlocations_fields')) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
     $locations = getlocations_fields_load_locations($id, $key);
   }
-  elseif (module_exists('location_cck')) {
+  elseif (\Drupal::moduleHandler()->moduleExists('location_cck')) {
     $locations = location_load_locations($id, $key);
   }
-  elseif (module_exists('geofield')) {
+  elseif (\Drupal::moduleHandler()->moduleExists('geofield')) {
     $locations = getlocations_other_load_locations($id, $key, 'geofield');
   }
-  elseif (module_exists('geolocation')) {
+  elseif (\Drupal::moduleHandler()->moduleExists('geolocation')) {
     $locations = getlocations_other_load_locations($id, $key, 'geolocation');
   }
   return $locations;
@@ -3127,14 +3568,14 @@ function getlocations_load_location($lid) {
 
   $getlocations_defaults = getlocations_defaults();
   $location = '';
-  if (module_exists('getlocations_fields')) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
     $location = getlocations_fields_load_location($lid);
     $type = getlocations_get_type_from_lid($lid);
     if (! isset($location['marker']) || empty($location['marker'])) {
       $location['marker'] = $getlocations_defaults[$type . '_map_marker'];
     }
   }
-  elseif (module_exists('location_cck')) {
+  elseif (\Drupal::moduleHandler()->moduleExists('location_cck')) {
     $location = location_load_location($lid);
     $location['marker'] = $getlocations_defaults['node_map_marker'];
   }
@@ -3152,7 +3593,7 @@ function getlocations_load_location($lid) {
  *
  */
 function getlocations_other_load_locations($id, $key = 'vid', $module = '') {
-  global $language;
+  $language = \Drupal::languageManager()->getCurrentLanguage();
 
   $locations = array();
   if (empty($module)) {
@@ -3161,27 +3602,27 @@ function getlocations_other_load_locations($id, $key = 'vid', $module = '') {
 
   if ($key == 'nid') {
     $entity_type = 'node';
-    $obj = node_load($id);
+    $obj = \Drupal::entityManager()->getStorage('node')->load($id);
     $location_name = $obj->title;
   }
   elseif ($key == 'vid') {
     $entity_type = 'node';
-    $obj = node_load(NULL, $id);
+    $obj = \Drupal::entityManager()->getStorage('node')->loadRevision($id);
     $location_name = $obj->title;
   }
   elseif ($key == 'uid') {
     $entity_type = 'user';
-    $obj = user_load($id);
+    $obj = \Drupal::entityManager()->getStorage('user')->load($id);
     $location_name = $obj->name;
   }
   elseif ($key == 'tid') {
     $entity_type = 'taxonomy_term';
-    $obj = taxonomy_term_load($id);
+    $obj = \Drupal::entityManager()->getStorage("taxonomy_term")->load($id);
     $location_name = $obj->name;
   }
   elseif ($key == 'cid') {
     $entity_type = 'comment';
-    $obj = comment_load($id);
+    $obj = \Drupal::entityManager()->getStorage('comment')->load($id);
     $location_name = $obj->subject;
   }
   // get the field_xxx names
@@ -3276,7 +3717,7 @@ function getlocations_other_load_locations($id, $key = 'vid', $module = '') {
   }
 
   // addressfield
-  if (module_exists('addressfield')) {
+  if (\Drupal::moduleHandler()->moduleExists('addressfield')) {
     // find an addressfield
     $type = 'addressfield';
     $addressfields = getlocations_other_get_fieldname($type, 'addressfield', $entity_type);
@@ -3409,7 +3850,7 @@ function getlocations_element_map_zoom($title, $default, $description='') {
     '#type' => 'select',
     '#title' => $title,
     '#default_value' => $default,
-    '#options' => drupal_map_assoc(range(0, 21)),
+    '#options' => array_combine(range(0, 21), range(0, 21)),
   );
   if (! empty($description)) {
     $element['#description'] = $description;
@@ -3428,7 +3869,7 @@ function getlocations_element_map_zoom($title, $default, $description='') {
  */
 function getlocations_element_map_zoom_map($title, $default, $description='') {
 
-  $opts = array('-1' => t('Use map type settings')) + drupal_map_assoc(range(0, 21));
+  $opts = array('-1' => t('Use map type settings')) + array_combine(range(0, 21), range(0, 21));
   $element = array(
     '#type' => 'select',
     '#title' => $title,
@@ -3752,7 +4193,7 @@ function getlocations_element_dd($title, $default, $options, $description = '', 
 
 function getlocations_get_map_providers() {
   // support hook_getlocations_map_providers
-  $providers = module_invoke_all('getlocations_map_providers');
+  $providers = \Drupal::moduleHandler()->invokeAll('getlocations_map_providers');
   return $providers;
 }
 
@@ -4164,7 +4605,7 @@ function getlocations_map_display_basics_form($defaults, $labels = array()) {
     '#type' => 'textarea',
     '#title' => $label['styles'],
     '#default_value' => $defaults['styles'],
-    '#description' => t('The default styles of a Google map. Use !link for generating your styles', array('!link' => l(t('this wizard'), 'http://gmaps-samples-v3.googlecode.com/svn/trunk/styledmaps/wizard/index.html', array('external' => TRUE)))),
+    '#description' => t('The default styles of a Google map. Use !link for generating your styles', array('!link' => \Drupal::l(t('this wizard'), \Drupal\Core\Url::fromUri('http://gmaps-samples-v3.googlecode.com/svn/trunk/styledmaps/wizard/index.html')))),
   );
 
   $form['latlong'] = getlocations_element_map_tf(
@@ -4346,7 +4787,7 @@ function getlocations_map_display_options_form($defaults, $config = TRUE, $extra
     );
 
     // jquery_colorpicker
-    if (module_exists('jquery_colorpicker')) {
+    if (\Drupal::moduleHandler()->moduleExists('jquery_colorpicker')) {
       $form['jquery_colorpicker_enabled'] = getlocations_element_map_checkbox(
         t('Use jQuery Colorpicker'),
         $defaults['jquery_colorpicker_enabled'],
@@ -4367,7 +4808,7 @@ function getlocations_map_display_options_form($defaults, $config = TRUE, $extra
   if ($extras) {
 
     // getlocations_gps
-    if (module_exists('getlocations_gps')) {
+    if (\Drupal::moduleHandler()->moduleExists('getlocations_gps')) {
       $form += getlocations_gps_map_display_options_form($defaults);
 
       $form['geolocation_mobile_check'] = array(
@@ -4383,7 +4824,7 @@ function getlocations_map_display_options_form($defaults, $config = TRUE, $extra
     }
 
     // getlocations_smartip
-    if (module_exists('getlocations_smartip')) {
+    if (\Drupal::moduleHandler()->moduleExists('getlocations_smartip')) {
       $form += getlocations_smartip_map_display_options_form($defaults);
     }
 
@@ -4642,7 +5083,7 @@ function getlocations_shapes_form($defaults, $source) {
   $form['polygons_enable']['#suffix'] = '<div id="wrap-getlocations-polygons">';
 
   // jquery_colorpicker
-  if (module_exists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
+  if (\Drupal::moduleHandler()->moduleExists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
     $form['polygons_strokecolor'] = array(
       '#type' => 'jquery_colorpicker',
       '#title' => t('Polygon line color'),
@@ -4679,7 +5120,7 @@ function getlocations_shapes_form($defaults, $source) {
   );
 
   // jquery_colorpicker
-  if (module_exists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
+  if (\Drupal::moduleHandler()->moduleExists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
     $form['polygons_fillcolor'] = array(
       '#type' => 'jquery_colorpicker',
       '#title' => t('Polygon fill color'),
@@ -4734,7 +5175,7 @@ function getlocations_shapes_form($defaults, $source) {
   $form['rectangles_enable']['#suffix'] = '<div id="wrap-getlocations-rectangles">';
 
   // jquery_colorpicker
-  if (module_exists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
+  if (\Drupal::moduleHandler()->moduleExists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
     $form['rectangles_strokecolor'] = array(
       '#type' => 'jquery_colorpicker',
       '#title' => t('Rectangle line color'),
@@ -4771,7 +5212,7 @@ function getlocations_shapes_form($defaults, $source) {
   );
 
   // jquery_colorpicker
-  if (module_exists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
+  if (\Drupal::moduleHandler()->moduleExists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
     $form['rectangles_fillcolor'] = array(
       '#type' => 'jquery_colorpicker',
       '#title' => t('Rectangle fill color'),
@@ -4846,7 +5287,7 @@ function getlocations_shapes_form($defaults, $source) {
   $form['circles_enable']['#suffix'] = '<div id="wrap-getlocations-circles">';
 
   // jquery_colorpicker
-  if (module_exists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
+  if (\Drupal::moduleHandler()->moduleExists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
     $form['circles_strokecolor'] = array(
       '#type' => 'jquery_colorpicker',
       '#title' => t('Circle line color'),
@@ -4883,7 +5324,7 @@ function getlocations_shapes_form($defaults, $source) {
   );
 
   // jquery_colorpicker
-  if (module_exists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
+  if (\Drupal::moduleHandler()->moduleExists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
     $form['circles_fillcolor'] = array(
       '#type' => 'jquery_colorpicker',
       '#title' => t('Circle fill color'),
@@ -4957,7 +5398,7 @@ function getlocations_shapes_form($defaults, $source) {
   $form['polylines_enable']['#suffix'] = '<div id="wrap-getlocations-polylines">';
 
   // jquery_colorpicker
-  if (module_exists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
+  if (\Drupal::moduleHandler()->moduleExists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
     $form['polylines_strokecolor'] = array(
       '#type' => 'jquery_colorpicker',
       '#title' => t('Polyline line color'),
@@ -5030,7 +5471,7 @@ function getlocations_geojson_form($defaults) {
       '#type' => 'textarea',
       '#title' => t('GeoJSON data'),
       '#default_value' => $defaults['geojson_data'],
-      '#description' => t('A GeoJSON object. For more information about GeoJSON see !u', array('!u' => l(t('geojson.org'), 'http://www.geojson.org/', array('attributes' => array('target' => '_blank'))))),
+      '#description' => t('A GeoJSON object. For more information about GeoJSON see !u', array('!u' => \Drupal::l(t('geojson.org'), \Drupal\Core\Url::fromUri('http://www.geojson.org/')))),
     );
     $form['geojson_options'] = array(
       '#type' => 'textarea',
@@ -5105,7 +5546,7 @@ function getlocations_highlight_form($defaults) {
     t('Highlight a marker with a circle on mouseover')
   );
   $form['highlight_enable']['#suffix'] = '<div id="wrap-getlocations-highlight">';
-  if (module_exists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
+  if (\Drupal::moduleHandler()->moduleExists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
     $form['highlight_strokecolor'] = array(
       '#type' => 'jquery_colorpicker',
       '#title' => t('Highlight Circle line color'),
@@ -5142,7 +5583,7 @@ function getlocations_highlight_form($defaults) {
   );
 
   // jquery_colorpicker
-  if (module_exists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
+  if (\Drupal::moduleHandler()->moduleExists('jquery_colorpicker') && $defaults['jquery_colorpicker_enabled']) {
     $form['highlight_fillcolor'] = array(
       '#type' => 'jquery_colorpicker',
       '#title' => t('Highlight Circle fill color'),
@@ -5277,7 +5718,7 @@ function getlocations_markeraction_form($defaults) {
     '#type' => 'select',
     '#title' => t('Zoom on Marker click'),
     '#default_value' => $defaults['markeraction_click_zoom'],
-    '#options' => array('-1' => t('None')) + drupal_map_assoc(range(0, 21)),
+    '#options' => array('-1' => t('None')) + array_combine(range(0, 21), range(0, 21)),
   );
 
   return $form;
@@ -5352,7 +5793,11 @@ function getlocations_what3words_form($defaults) {
 
   $form = array();
 
-  $what3words_lic = variable_get('getlocations_what3words_lic', array('key' => '', 'url' => 'http://api.what3words.com'));
+  // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$what3words_lic = \Drupal::config('getlocations.settings')->get('getlocations_what3words_lic');
   if ($what3words_lic['key']) {
 
     $form['what3words_enable'] = getlocations_element_map_checkbox(
@@ -5398,7 +5843,7 @@ function getlocations_what3words_form($defaults) {
     #  t('Zoom for What3Words location'),
     #  $defaults['what3words_zoom']
     #);
-    $opts = array('-2' => t('Keep current zoom'), '-1' => t('Use map type settings')) + drupal_map_assoc(range(0, 21));
+    $opts = array('-2' => t('Keep current zoom'), '-1' => t('Use map type settings')) + array_combine(range(0, 21), range(0, 21));
     $form['what3words_zoom'] = array(
       '#type' => 'select',
       '#title' => t('Zoom for What3Words location'),
@@ -5495,7 +5940,11 @@ function getlocations_paths_get($reset = FALSE, $min = FALSE) {
     $getlocations_paths = $defaults;
   }
   else {
-    $settings = variable_get('getlocations_paths', $defaults);
+    // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$settings = \Drupal::config('getlocations.settings')->get('getlocations_paths');
     $getlocations_paths = getlocations_adjust_vars($defaults, $settings);
   }
 
@@ -5512,7 +5961,7 @@ function getlocations_paths_get($reset = FALSE, $min = FALSE) {
  *
  */
 function getlocations_markerpicker_link($id, $cat, $infoimg='') {
-  if (module_exists('colorbox')) {
+  if (\Drupal::moduleHandler()->moduleExists('colorbox')) {
     $getlocations_colorbox = getlocations_colorbox_settings();
     if ($getlocations_colorbox['marker_enable']) {
       $boxwidth = $getlocations_colorbox['marker_width'];
@@ -5520,14 +5969,17 @@ function getlocations_markerpicker_link($id, $cat, $infoimg='') {
       if (empty($infoimg)) {
         $infoimg = '<img class="getlocations_infoimg" src="' . base_path() . GETLOCATIONS_PATH . '/images/info.png' . '" title="' . t('Click here to select an icon from a colorbox') . '" >';
       }
-      $link = l($infoimg, 'getlocations/markerinfo', array(
-          'attributes' => array(
-            'class' => 'colorbox-load',
-          ),
-          'html' => TRUE,
-          'query' => array('width' => $boxwidth, 'height' => $boxheight, 'iframe' => 'true', 'lt' => $id, 'cat' => $cat),
-        )
-      );
+      // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $link = l($infoimg, 'getlocations/markerinfo', array(
+//           'attributes' => array(
+//             'class' => 'colorbox-load',
+//           ),
+//           'html' => TRUE,
+//           'query' => array('width' => $boxwidth, 'height' => $boxheight, 'iframe' => 'true', 'lt' => $id, 'cat' => $cat),
+//         )
+//       );
+
       return $link;
     }
   }
@@ -5551,9 +6003,13 @@ function getlocations_colorbox_settings() {
     'marker_width' => 600,
     'marker_height' => 600,
   );
-  $colorbox_settings =  variable_get('getlocations_colorbox', $colorbox_defaults);
+  // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$colorbox_settings =  \Drupal::config('getlocations.settings')->get('getlocations_colorbox');
   $getlocations_colorbox = getlocations_adjust_vars($colorbox_defaults, $colorbox_settings);
-  if (! module_exists('colorbox')) {
+  if (! \Drupal::moduleHandler()->moduleExists('colorbox')) {
     $getlocations_colorbox['enable'] = 0;
     $getlocations_colorbox['marker_enable'] = 0;
   }
@@ -5912,7 +6368,7 @@ function getlocations_get_geocoder_path() {
  */
 function getlocations_apoclean($string) {
   $string = trim($string);
-  $string = check_plain($string);
+  $string = \Drupal\Component\Utility\SafeMarkup::checkPlain($string);
   return htmlspecialchars_decode($string, ENT_QUOTES);
 }
 
@@ -6002,10 +6458,10 @@ function getlocations_get_bundles($module = 'getlocations_fields', $type = 'getl
  */
 function getlocations_get_countries_list($upper = TRUE, $only_continents = '', $only_countries = '') {
 
-  if (module_exists('countries')) {
+  if (\Drupal::moduleHandler()->moduleExists('countries')) {
     $filter = array('enabled' => COUNTRIES_ENABLED);
     if ($only_countries) {
-      $only_countries = drupal_strtoupper($only_countries);
+      $only_countries = \Drupal\Component\Utility\Unicode::strtoupper($only_countries);
       $oc = explode(',', $only_countries);
       if (! empty($oc)) {
         $filter['countries'] = $oc;
@@ -6023,7 +6479,7 @@ function getlocations_get_countries_list($upper = TRUE, $only_continents = '', $
     $countries = countries_get_countries('name', $filter);
   }
   else {
-    include_once DRUPAL_ROOT . '/includes/locale.inc';
+    include_once \Drupal::root() . '/includes/locale.inc';
     // Statically cache a version of the core Drupal list of countries
     $countries = &drupal_static(__FUNCTION__);
     if (! isset($countries) || empty($countries)) {
@@ -6047,7 +6503,7 @@ function getlocations_get_countries_list($upper = TRUE, $only_continents = '', $
  */
 function getlocations_get_country_name($id) {
   $countries = getlocations_get_countries_list();
-  $id = drupal_strtoupper($id);
+  $id = \Drupal\Component\Utility\Unicode::strtoupper($id);
   $country = FALSE;
   if (isset($countries[$id])) {
     $country = $countries[$id];
@@ -6066,8 +6522,8 @@ function getlocations_get_country_id($country) {
   $id = FALSE;
   $countries = getlocations_get_countries_list();
   foreach ($countries AS $k => $v) {
-    if (drupal_strtoupper($country) == drupal_strtoupper($v)) {
-      $id = drupal_strtoupper($k);
+    if (\Drupal\Component\Utility\Unicode::strtoupper($country) == \Drupal\Component\Utility\Unicode::strtoupper($v)) {
+      $id = \Drupal\Component\Utility\Unicode::strtoupper($k);
       break;
     }
   }
@@ -6145,7 +6601,16 @@ function getlocations_dms_to_dd($dms) {
  *
  */
 function getlocations_addressfield_convert($address) {
-  $location = theme('getlocations_addressfield_convert', array('address' => $address));
+  // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $location = theme('getlocations_addressfield_convert', array('address' => $address));
+
   return $location;
 }
 
@@ -6165,7 +6630,7 @@ function getlocations_dim_check($string) {
   if (!is_string($string) || empty($string)) {
     return FALSE;
   }
-  $s = drupal_strtolower(trim($string));
+  $s = \Drupal\Component\Utility\Unicode::strtolower(trim($string));
   $matches = array();
   if (preg_match('/^([\d.]+)\s*(em|ex|px|in|cm|mm|pt|pc|%)$/', $s, $matches)) {
     return $matches[1] . $matches[2];
@@ -6707,7 +7172,11 @@ function getlocations_is_mobile($override = FALSE) {
  */
 function getlocations_ua_get() {
   $default = array('ua_string' => "iphone|ipad|android|blackberry|blazer|bolt|symbian|mobile safari|fennec|gobrowser|iemobile|maemo browser|profile midp|minimo|kindle|opera mini|opera mobi|skyfire|teashark|uzardweb");
-  $getlocations_ua = variable_get('getlocations_ua', $default);
+  // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_ua = \Drupal::config('getlocations.settings')->get('getlocations_ua');
   return $getlocations_ua;
 }
 
@@ -6721,7 +7190,7 @@ function getlocations_ua_get() {
  *
  */
 function getlocations_aggr_get() {
-  $getlocations_aggr = variable_get('getlocations_aggr', 1);
+  $getlocations_aggr = \Drupal::config('getlocations.settings')->get('getlocations_aggr');
   return $getlocations_aggr;
 }
 
@@ -6737,7 +7206,11 @@ function getlocations_aggr_get() {
 function getlocations_get_term_marker($nid, $marker) {
   $getlocations_defaults = getlocations_defaults();
   // term markers
-  $getlocations_term_marker = variable_get('getlocations_term_marker', array('enable' => 0, 'vids' => 0, 'max_depth' => ''));
+  // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_term_marker = \Drupal::config('getlocations.settings')->get('getlocations_term_marker');
   if ($getlocations_term_marker['enable'] && $getlocations_term_marker['vids']) {
     $vids = $getlocations_term_marker['vids'];
     foreach ($vids AS $vid) {
@@ -6781,7 +7254,7 @@ function getlocations_supported_modules() {
 function getlocations_get_current_supported_module() {
   $modules = getlocations_supported_modules();
   foreach ($modules AS $module) {
-    if (module_exists($module)) {
+    if (\Drupal::moduleHandler()->moduleExists($module)) {
       return $module;
     }
   }
@@ -7022,7 +7495,10 @@ function theme_getlocations_show($variables) {
       if ( preg_match("/%t/", $linktext)) {
         $linktext = preg_replace("/%t/", $node->title, $linktext);
       }
-      $l = l($linktext, 'node/' . $node->nid);
+      // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $l = l($linktext, 'node/' . $node->nid);
+
       $returnlink = '<div class="getlocations_returnlink">' . $l . '</div>';
     }
   }
@@ -7032,27 +7508,36 @@ function theme_getlocations_show($variables) {
       if ( preg_match("/%n/", $linktext)) {
         $linktext = preg_replace("/%n/", $node->name, $linktext);
       }
-      $l = l($linktext, 'user/' . $node->uid);
+      // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $l = l($linktext, 'user/' . $node->uid);
+
       $returnlink = '<div class="getlocations_returnlink">' . $l . '</div>';
     }
   }
-  elseif ($type == 'term' && $defaults['returnlink_term_enable'] && module_exists('taxonomy')) {
+  elseif ($type == 'term' && $defaults['returnlink_term_enable'] && \Drupal::moduleHandler()->moduleExists('taxonomy')) {
     if (is_object($node)) {
       $linktext = $defaults['returnlink_term_link'];
       if ( preg_match("/%n/", $linktext)) {
         $linktext = preg_replace("/%n/", $node->name, $linktext);
       }
-      $l = l($linktext, 'taxonomy/term/' . $node->tid);
+      // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $l = l($linktext, 'taxonomy/term/' . $node->tid);
+
       $returnlink = '<div class="getlocations_returnlink">' . $l . '</div>';
     }
   }
-  elseif ($type == 'comment' && $defaults['returnlink_comment_enable'] && module_exists('comment')) {
+  elseif ($type == 'comment' && $defaults['returnlink_comment_enable'] && \Drupal::moduleHandler()->moduleExists('comment')) {
     if (is_object($node)) {
       $linktext = $defaults['returnlink_comment_link'];
       if ( preg_match("/%n/", $linktext)) {
         $linktext = preg_replace("/%n/", $node->subject, $linktext);
       }
-      $l = l($linktext, 'comment/' . $node->cid);
+      // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $l = l($linktext, 'comment/' . $node->cid);
+
       $returnlink = '<div class="getlocations_returnlink">' . $l . '</div>';
     }
   }
@@ -7234,7 +7719,7 @@ function theme_getlocations_show($variables) {
   $output .= '//--><!]]>' . "\n" . '</script>' . "\n";
 
   // show_search_distance
-  if (module_exists('getlocations_fields') && isset($defaults['search_dist_info'])) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_fields') && isset($defaults['search_dist_info'])) {
     $output .= '<div id="getlocations_fields_search_views_search_wrapper_' . $mapid . '" class="js-hide">';
     $output .= '<div id="getlocations_fields_search_views_search_units_' . $mapid . '">' . $defaults['search_dist_info']['search_units'] . '</div>';
     $output .= '<div id="getlocations_fields_search_views_search_latitude_' . $mapid . '">' . $defaults['search_dist_info']['latitude'] . '</div>';
@@ -7271,7 +7756,7 @@ function theme_getlocations_show($variables) {
   }
 
   // views_search_marker
-  if (module_exists('getlocations_fields') && isset($defaults['search_dist_info'])) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_fields') && isset($defaults['search_dist_info'])) {
     if ($defaults['views_search_marker_enable'] && $defaults['views_search_marker_toggle']) {
       $buttons[] = '<input type="button" value="' . t('Search marker !t', array('!t' => ($defaults['views_search_marker_toggle_active'] ? t('Off') : t('On')))) . '" id="getlocations_toggleSearchMarker_' . $mapid . '" class="form-submit" />';
     }
@@ -7299,7 +7784,7 @@ function theme_getlocations_show($variables) {
     $buttons[] = '<input type="button" value="' . $kmlbuttonlabel . '" id="getlocations_toggleKmlLayer_' . $mapid . '" class="form-submit"  />';
   }
 
-  if (module_exists('getlocations_search')) {
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_search')) {
     // search area shape
     if (isset($defaults['search_radshape_toggle']) && $defaults['search_radshape_toggle'] && $defaults['search_radshape_enable']) {
       $buttons[] = '<input type="button" value="' . t('Search area !t', array('!t' => ($defaults['search_radshape_toggle_active'] ? t('Off') : t('On')))) . '" id="getlocations_search_toggleShape_' . $mapid . '" class="form-submit" />';
@@ -7311,12 +7796,30 @@ function theme_getlocations_show($variables) {
   }
 
   // getlocations_gps
-  if (module_exists('getlocations_gps')) {
-    $buttons[] = theme('getlocations_gps_button', array('defaults' => $defaults, 'mapid' => $mapid));
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_gps')) {
+    // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $buttons[] = theme('getlocations_gps_button', array('defaults' => $defaults, 'mapid' => $mapid));
+
   }
   // getlocations_smartip
-  if (module_exists('getlocations_smartip')) {
-    $buttons[] = theme('getlocations_smartip_button', array('defaults' => $defaults, 'mapid' => $mapid));
+  if (\Drupal::moduleHandler()->moduleExists('getlocations_smartip')) {
+    // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $buttons[] = theme('getlocations_smartip_button', array('defaults' => $defaults, 'mapid' => $mapid));
+
   }
 
   if (count($buttons)) {
@@ -7331,7 +7834,11 @@ function theme_getlocations_show($variables) {
   }
 
   // What3Words
-  $what3words_lic = variable_get('getlocations_what3words_lic', array('key' => '', 'url' => 'http://api.what3words.com'));
+  // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$what3words_lic = \Drupal::config('getlocations.settings')->get('getlocations_what3words_lic');
   if ($what3words_lic['key'] && $defaults['what3words_enable']) {
     $output .= '<div class="getlocations_what3words container-inline">';
     if ($defaults['what3words_search']) {
@@ -7377,40 +7884,52 @@ function theme_getlocations_adinfo($variables) {
       $link = $location['name'];
     }
     else {
-      $node = node_load($location['nid']);
+      $node = \Drupal::entityManager()->getStorage('node')->load($location['nid']);
       $link = $node->title;
     }
-    $l = l($link, 'node/' . $location['nid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+    // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $l = l($link, 'node/' . $location['nid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+
   }
   elseif (isset($location['uid']) && $location['uid'] > 0) {
     if (! empty($location['name'])) {
       $link = $location['name'];
     }
     else {
-      $account = user_load($location['uid']);
+      $account = \Drupal::entityManager()->getStorage('user')->load($location['uid']);
       $link = $account->name;
     }
-    $l = l($link, 'user/' . $location['uid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+    // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $l = l($link, 'user/' . $location['uid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+
   }
-  elseif (isset($location['tid']) && $location['tid'] > 0 && module_exists('taxonomy')) {
+  elseif (isset($location['tid']) && $location['tid'] > 0 && \Drupal::moduleHandler()->moduleExists('taxonomy')) {
     if (! empty($location['name'])) {
       $link = $location['name'];
     }
     else {
-      $term = taxonomy_term_load($location['tid']);
+      $term = \Drupal::entityManager()->getStorage("taxonomy_term")->load($location['tid']);
       $link = $term->name;
     }
-    $l = l($link, 'taxonomy/term/' . $location['tid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+    // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $l = l($link, 'taxonomy/term/' . $location['tid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+
   }
-  elseif (isset($location['cid']) && $location['cid'] > 0 && module_exists('comment')) {
+  elseif (isset($location['cid']) && $location['cid'] > 0 && \Drupal::moduleHandler()->moduleExists('comment')) {
     if (! empty($location['name'])) {
       $link = $location['name'];
     }
     else {
-      $comment = comment_load($location['cid']);
+      $comment = \Drupal::entityManager()->getStorage('comment')->load($location['cid']);
       $link = $comment->subject;
     }
-    $l = l($link, 'comment/' . $location['cid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+    // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $l = l($link, 'comment/' . $location['cid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+
   }
   if ($l) {
     $output .= '<h4>' . $l . '</h4>';
@@ -7449,7 +7968,7 @@ function theme_getlocations_adinfo($variables) {
     }
   }
   if (! empty($location['postal_code'])) {
-    $output .= '<span class="postal-code">' . drupal_strtoupper($location['postal_code']) . '</span>';
+    $output .= '<span class="postal-code">' . \Drupal\Component\Utility\Unicode::strtoupper($location['postal_code']) . '</span>';
   }
   if (isset($location['country_name']) && ! empty($location['country_name'])) {
     $output .= '<div class="country-name">' . $location['country_name'] . '</div>';
@@ -7468,19 +7987,31 @@ function theme_getlocations_adinfo($variables) {
     $output .= '<div class="search-distance">' . number_format(floatval($location['sdist']), 2) . "&nbsp;" . $unit_disp . '</div>';
   }
 
-  if (module_exists('getdirections') && isset($location['getdirections_link']) && $location['getdirections_link']) {
+  if (\Drupal::moduleHandler()->moduleExists('getdirections') && isset($location['getdirections_link']) && $location['getdirections_link']) {
     $gdlink = '';
     if (isset($location['nid']) && $location['nid']) {
-      $gdlink = l(t('Directions'), 'getdirections/location/to/' . $location['nid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+      // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $gdlink = l(t('Directions'), 'getdirections/location/to/' . $location['nid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+
     }
     elseif (isset($location['uid']) && $location['uid']) {
-      $gdlink = l(t('Directions'), 'getdirections/location_user/to/' . $location['uid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+      // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $gdlink = l(t('Directions'), 'getdirections/location_user/to/' . $location['uid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+
     }
     elseif (isset($location['cid']) && $location['cid'] && getdirections_check_entity_type('comment')) {
-      $gdlink = l(t('Directions'), 'getdirections/location_comment/to/' . $location['cid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+      // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $gdlink = l(t('Directions'), 'getdirections/location_comment/to/' . $location['cid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+
     }
     elseif (isset($location['tid']) && $location['tid'] && getdirections_get_vocabularies()) {
-      $gdlink = l(t('Directions'), 'getdirections/location_term/to/' . $location['tid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+      // @FIXME
+// l() expects a Url object, created from a route name or external URI.
+// $gdlink = l(t('Directions'), 'getdirections/location_term/to/' . $location['tid'], array('attributes' => array('class' => array('getlocations_infolink'), 'target' => '_parent')));
+
     }
     if ($gdlink) {
       $output .= '<div class="getdirections-link">' . $gdlink . '</div>';
@@ -7503,33 +8034,89 @@ function theme_getlocations_adinfo($variables) {
  */
 function template_preprocess_getlocations_box(&$variables) {
 
-  if (module_exists('admin_menu')) {
+  if (\Drupal::moduleHandler()->moduleExists('admin_menu')) {
     admin_menu_suppress();
   }
   $getlocations_paths = getlocations_paths_get();
-  drupal_add_js($getlocations_paths['getlocations_box_path']);
+  // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_box_path']);
+
 
   // Construct page title
-  if (drupal_get_title()) {
-    $head_title = array(strip_tags(drupal_get_title()), variable_get('site_name', 'Drupal'));
+  if (\Drupal::service('title_resolver')->getTitle(\Drupal::request(), \Drupal::routeMatch()->getRouteObject())) {
+    // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// $head_title = array(strip_tags(\Drupal::service('title_resolver')->getTitle(\Drupal::request(), \Drupal::routeMatch()->getRouteObject())), variable_get('site_name', 'Drupal'));
+
   }
   else {
-    $head_title = array(variable_get('site_name', 'Drupal'));
-    if (variable_get('site_slogan', '')) {
-      $head_title[] = variable_get('site_slogan', '');
-    }
+    // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// $head_title = array(variable_get('site_name', 'Drupal'));
+
+    // @FIXME
+// // @FIXME
+// // This looks like another module's variable. You'll need to rewrite this call
+// // to ensure that it uses the correct configuration object.
+// if (variable_get('site_slogan', '')) {
+//       $head_title[] = variable_get('site_slogan', '');
+//     }
+
   }
   $variables['head_title'] = implode(' | ', $head_title);
   $variables['base_path'] = base_path();
   $variables['head'] = drupal_get_html_head();
-  $variables['language'] = $GLOBALS['language'];
-  $variables['language']->dir = $GLOBALS['language']->direction ? 'rtl' : 'ltr';
-  $variables['css'] = drupal_add_css();
-  $variables['styles'] = drupal_get_css();
-  $variables['scripts'] = drupal_get_js();
-  $variables['title'] = drupal_get_title();
+  $variables['language'] = \Drupal::languageManager()->getCurrentLanguage();
+  $variables['language']->dir = \Drupal::languageManager()->getCurrentLanguage()->direction ? 'rtl' : 'ltr';
+  // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// $variables['css'] = drupal_add_css();
+
+  // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// $variables['styles'] = drupal_get_css();
+
+  // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// $variables['scripts'] = drupal_get_js();
+
+  $variables['title'] = \Drupal::service('title_resolver')->getTitle(\Drupal::request(), \Drupal::routeMatch()->getRouteObject());
   // Closure should be filled last.
-  $variables['closure'] = theme('closure');
+  // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $variables['closure'] = theme('closure');
+
   // Compile a list of classes that are going to be applied to the body element.
   // This allows advanced theming based on context (home page, node of certain type, etc.).
   $body_classes = array();
@@ -7553,25 +8140,66 @@ function template_preprocess_getlocations_box(&$variables) {
  */
 function template_preprocess_getlocations_marker_box(&$variables) {
 
-  if (module_exists('admin_menu')) {
+  if (\Drupal::moduleHandler()->moduleExists('admin_menu')) {
     admin_menu_suppress();
   }
   $getlocations_paths = getlocations_paths_get();
-  drupal_add_js($getlocations_paths['getlocations_marker_box_path']);
+  // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// drupal_add_js($getlocations_paths['getlocations_marker_box_path']);
+
 
   $head_title = t('Getlocations markers');
   $variables['head_title'] = $head_title;
   $variables['base_path'] = base_path();
   $variables['head'] = drupal_get_html_head();
-  $variables['language'] = $GLOBALS['language'];
-  $variables['language']->dir = $GLOBALS['language']->direction ? 'rtl' : 'ltr';
-  $variables['css'] = drupal_add_css();
-  $variables['styles'] = drupal_get_css();
-  $variables['scripts'] = drupal_get_js();
+  $variables['language'] = \Drupal::languageManager()->getCurrentLanguage();
+  $variables['language']->dir = \Drupal::languageManager()->getCurrentLanguage()->direction ? 'rtl' : 'ltr';
+  // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// $variables['css'] = drupal_add_css();
+
+  // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// $variables['styles'] = drupal_get_css();
+
+  // @FIXME
+// The Assets API has totally changed. CSS, JavaScript, and libraries are now
+// attached directly to render arrays using the #attached property.
+// 
+// 
+// @see https://www.drupal.org/node/2169605
+// @see https://www.drupal.org/node/2408597
+// $variables['scripts'] = drupal_get_js();
+
   $variables['title'] = $head_title;
 
   // Closure should be filled last.
-  $variables['closure'] = theme('closure');
+  // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $variables['closure'] = theme('closure');
+
   // Compile a list of classes that are going to be applied to the body element.
   // This allows advanced theming based on context (home page, node of certain type, etc.).
   $body_classes = array();
@@ -7626,7 +8254,7 @@ function theme_getlocations_settings_form($variables) {
   }
 
   // marker colorbox
-  if (module_exists('colorbox')) {
+  if (\Drupal::moduleHandler()->moduleExists('colorbox')) {
     $getlocations_colorbox = getlocations_colorbox_settings();
     if ($getlocations_colorbox['marker_enable']) {
       $link = getlocations_markerpicker_link($form['getlocations_default']['node_map_marker']['#id'], 'n');
@@ -7636,7 +8264,7 @@ function theme_getlocations_settings_form($variables) {
         $link = getlocations_markerpicker_link($form['getlocations_default']['user_map_marker']['#id'], 'u');
         $form['getlocations_default']['user_map_marker']['#field_suffix'] = '&nbsp;' . $link;
       }
-      if (module_exists('taxonomy')) {
+      if (\Drupal::moduleHandler()->moduleExists('taxonomy')) {
         if (isset($form['getlocations_default']['vocabulary_map_marker'])) {
           $link = getlocations_markerpicker_link($form['getlocations_default']['vocabulary_map_marker']['#id'], 'v');
           $form['getlocations_default']['vocabulary_map_marker']['#field_suffix'] = '&nbsp;' . $link;
@@ -7650,7 +8278,7 @@ function theme_getlocations_settings_form($variables) {
         $link = getlocations_markerpicker_link($form['getlocations_default']['comment_map_marker']['#id'], 'c');
         $form['getlocations_default']['comment_map_marker']['#field_suffix'] = '&nbsp;' . $link;
       }
-      if (module_exists('getlocations_fields')) {
+      if (\Drupal::moduleHandler()->moduleExists('getlocations_fields')) {
         $link = getlocations_markerpicker_link($form['getlocations_default']['input_map_marker']['#id'], 'i');
         $form['getlocations_default']['input_map_marker']['#field_suffix'] = '&nbsp;' . $link;
       }
@@ -7666,7 +8294,7 @@ function theme_getlocations_settings_form($variables) {
           }
         }
       }
-      if (module_exists('taxonomy')) {
+      if (\Drupal::moduleHandler()->moduleExists('taxonomy')) {
         if ($types = getlocations_get_vocabularies()) {
           foreach ($types AS $type => $name) {
             if (isset($form['getlocations_vocabulary_marker']['vocabulary'][$type]['map_marker'])) {
@@ -7677,12 +8305,16 @@ function theme_getlocations_settings_form($variables) {
         }
 
         // term
-        $getlocations_term_marker = variable_get('getlocations_term_marker', array('enable' => 0, 'vids' => 0, 'max_depth' => ''));
+        // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_term_marker = \Drupal::config('getlocations.settings')->get('getlocations_term_marker');
         if ($getlocations_term_marker['enable'] && $getlocations_term_marker['vids']) {
           $depth = is_numeric($getlocations_term_marker['max_depth']) && $getlocations_term_marker['max_depth'] > 0 ? $getlocations_term_marker['max_depth'] : NULL;
           $vids = $getlocations_term_marker['vids'];
           foreach ($vids AS $vid) {
-            $terms = taxonomy_get_tree($vid, 0, $depth);
+            $terms = \Drupal::entityManager()->getStorage("taxonomy_term")->loadTree($vid, 0, $depth);
             $tct = 0;
             foreach ($terms AS $term) {
               $tid = $term->tid;
@@ -7728,7 +8360,16 @@ function theme_getlocations_settings_form($variables) {
   $minmaxes = '';
   $latlons = array();
   getlocations_js_settings_do($getlocations_defaults, $latlons, $minmaxes, $mapid, FALSE, $getlocations_defaults['extcontrol']);
-  $preview_map = theme('getlocations_show', array('width' => $getlocations_defaults['width'] , 'height' => $getlocations_defaults['height'] , 'defaults' => $getlocations_defaults, 'mapid' => $mapid, 'latlons' => $latlons, 'minmaxes' => $minmaxes, 'type' => '', 'node' => ''));
+  // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $preview_map = theme('getlocations_show', array('width' => $getlocations_defaults['width'] , 'height' => $getlocations_defaults['height'] , 'defaults' => $getlocations_defaults, 'mapid' => $mapid, 'latlons' => $latlons, 'minmaxes' => $minmaxes, 'type' => '', 'node' => ''));
+
   $form['getlocations_preview']['preview_map']['#markup'] = '<div id="getlocations_preview_map">' . $preview_map . '</div>';
 
   $output .= drupal_render_children($form);
@@ -7750,20 +8391,24 @@ function theme_getlocations_settings_form($variables) {
 function theme_getlocations_plugin_style_map_options_form($variables) {
   $form = $variables['form'];
 
-  if (module_exists('colorbox')) {
+  if (\Drupal::moduleHandler()->moduleExists('colorbox')) {
     $getlocations_colorbox = getlocations_colorbox_settings();
     if ($getlocations_colorbox['marker_enable']) {
       if (isset($form['node_map_marker'])) {
         $link = getlocations_markerpicker_link($form['node_map_marker']['#id'], 'n');
         $form['node_map_marker']['#field_suffix'] = '&nbsp;' . $link;
       }
-      $getlocations_node_marker = variable_get('getlocations_node_marker', array('enable' => 0));
+      // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_node_marker = \Drupal::config('getlocations.settings')->get('getlocations_node_marker');
       if ($getlocations_node_marker['enable']) {
         if ($types = getlocations_get_types()) {
           foreach ($types AS $type => $name) {
             $field_names = getlocations_get_fieldname2($type, 'node');
             foreach ($field_names AS $field_name) {
-              $mkey = 'node_marker__' . drupal_strtolower($type) . '__' . $field_name;
+              $mkey = 'node_marker__' . \Drupal\Component\Utility\Unicode::strtolower($type) . '__' . $field_name;
               $link = getlocations_markerpicker_link($form[$mkey]['#id'], 'n');
               $form[$mkey]['#field_suffix'] = '&nbsp;' . $link;
             }
@@ -7775,12 +8420,16 @@ function theme_getlocations_plugin_style_map_options_form($variables) {
         $form['user_map_marker']['#field_suffix'] = '&nbsp;' . $link;
       }
 
-      if (module_exists('taxonomy')) {
+      if (\Drupal::moduleHandler()->moduleExists('taxonomy')) {
         if (isset($form['vocabulary_map_marker'])) {
           $link = getlocations_markerpicker_link($form['vocabulary_map_marker']['#id'], 'v');
           $form['vocabulary_map_marker']['#field_suffix'] = '&nbsp;' . $link;
         }
-        $getlocations_vocabulary_marker = variable_get('getlocations_vocabulary_marker', array('enable' => 0));
+        // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_vocabulary_marker = \Drupal::config('getlocations.settings')->get('getlocations_vocabulary_marker');
         if ($getlocations_vocabulary_marker['enable']) {
           foreach ($types AS $type => $name) {
             $field_name = getlocations_get_fieldname($type, 'taxonomy_term');
@@ -7793,12 +8442,16 @@ function theme_getlocations_plugin_style_map_options_form($variables) {
           $link = getlocations_markerpicker_link($form['term_map_marker']['#id'], 't');
           $form['term_map_marker']['#field_suffix'] = '&nbsp;' . $link;
         }
-        $getlocations_term_marker = variable_get('getlocations_term_marker', array('enable' => 0, 'vids' => 0, 'max_depth' => ''));
+        // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_term_marker = \Drupal::config('getlocations.settings')->get('getlocations_term_marker');
         if ($getlocations_term_marker['enable'] && $getlocations_term_marker['vids']) {
           $depth = is_numeric($getlocations_term_marker['max_depth']) && $getlocations_term_marker['max_depth'] > 0 ? $getlocations_term_marker['max_depth'] : NULL;
           $vids = $getlocations_term_marker['vids'];
           foreach ($vids AS $vid) {
-            $terms = taxonomy_get_tree($vid, 0, $depth);
+            $terms = \Drupal::entityManager()->getStorage("taxonomy_term")->loadTree($vid, 0, $depth);
             foreach ($terms AS $term) {
               $name = $term->name;
               $tid = $term->tid;
@@ -7978,7 +8631,7 @@ function theme_getlocations_addressfield_convert($variables) {
       $admin_area[] = $address['administrative_area'];
     }
     $location['province_name'] = (count($admin_area) ? implode(", ", $admin_area) :'');
-    $location['postal_code'] = (isset($address['postal_code']) ? drupal_strtoupper($address['postal_code']) : '');
+    $location['postal_code'] = (isset($address['postal_code']) ? \Drupal\Component\Utility\Unicode::strtoupper($address['postal_code']) : '');
     $location['country_name'] = (isset($address['country_name']) ? $address['country_name'] : $address['country']);
     $location['country'] = $address['country'];
   }
@@ -8005,28 +8658,43 @@ function theme_getlocations_lidinfo($variables) {
 
   $output = FALSE;
   if ($lid > 0) {
-    if (module_exists('getlocations_fields') || module_exists('location')) {
+    if (\Drupal::moduleHandler()->moduleExists('getlocations_fields') || \Drupal::moduleHandler()->moduleExists('location')) {
       $path = getlocations_get_path_from_lid($lid);
       if ($path) {
         $output = $path;
       }
     }
-    elseif (module_exists('geofield') || module_exists('geolocation') ) {
+    elseif (\Drupal::moduleHandler()->moduleExists('geofield') || \Drupal::moduleHandler()->moduleExists('geolocation') ) {
       if ($lidkey == 'nid') {
-        $path = url('node/' . $lid);
+        // @FIXME
+// url() expects a route name or an external URI.
+// $path = url('node/' . $lid);
+
       }
       elseif ($lidkey == 'vid') {
         $nid = getlocations_get_nid($lid);
-        $path = url('node/' . $nid);
+        // @FIXME
+// url() expects a route name or an external URI.
+// $path = url('node/' . $nid);
+
       }
       elseif ($lidkey == 'uid') {
-        $path = url('user/' . $lid);
+        // @FIXME
+// url() expects a route name or an external URI.
+// $path = url('user/' . $lid);
+
       }
-      elseif ($lidkey == 'tid' && module_exists('taxonomy')) {
-        $path = url('taxonomy/term/' . $lid);
+      elseif ($lidkey == 'tid' && \Drupal::moduleHandler()->moduleExists('taxonomy')) {
+        // @FIXME
+// url() expects a route name or an external URI.
+// $path = url('taxonomy/term/' . $lid);
+
       }
-      elseif ($lidkey == 'cid' && module_exists('comment')) {
-        $path = url('comment/' . $lid);
+      elseif ($lidkey == 'cid' && \Drupal::moduleHandler()->moduleExists('comment')) {
+        // @FIXME
+// url() expects a route name or an external URI.
+// $path = url('comment/' . $lid);
+
       }
       if ($path) {
         $output = $path;

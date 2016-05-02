@@ -36,7 +36,7 @@ function getlocations_views_plugins() {
  * Preprocess function for getlocations_view_map.tpl
  */
 function template_preprocess_getlocations_view_map(&$variables) {
-  global $language;
+  $language = \Drupal::languageManager()->getCurrentLanguage();
 
   $locations = $variables['view']->style_plugin->rendered_fields;
   $options = $variables['view']->style_plugin->options;
@@ -70,22 +70,22 @@ function template_preprocess_getlocations_view_map(&$variables) {
 
       $custom_content = $custom_content_source ? $location[$custom_content_source] : '';
       $lid = 0;
-      if (module_exists('getlocations_fields') && isset($location['glid']) && $location['glid'] > 0) {
+      if (\Drupal::moduleHandler()->moduleExists('getlocations_fields') && isset($location['glid']) && $location['glid'] > 0) {
         $lid = $location['glid'];
       }
-      elseif (module_exists('location') && isset($location['lid']) && $location['lid'] > 0) {
+      elseif (\Drupal::moduleHandler()->moduleExists('location') && isset($location['lid']) && $location['lid'] > 0) {
         $lid = $location['lid'];
         if (isset($location['type'])) {
           $location['field_name'] = getlocations_get_fieldname($location['type'], $entity_type);
         }
       }
-      elseif (module_exists('geofield') && isset($location[$base_field]) && $location[$base_field] > 0 ) {
+      elseif (\Drupal::moduleHandler()->moduleExists('geofield') && isset($location[$base_field]) && $location[$base_field] > 0 ) {
         $lid = $location[$base_field];
         $location['field_name'] = getlocations_get_fieldname($location['type'], $entity_type);
         $location['latitude'] = $location[$location['field_name']];
         $location['longitude'] = $location[$location['field_name'] . '_1'];
       }
-      elseif (module_exists('geolocation') && isset($location[$base_field]) && $location[$base_field] > 0 ) {
+      elseif (\Drupal::moduleHandler()->moduleExists('geolocation') && isset($location[$base_field]) && $location[$base_field] > 0 ) {
         $lid = $location[$base_field];
         $location['field_name'] = getlocations_get_fieldname($location['type'], $entity_type);
         $location['latitude'] = $location[$location['field_name']];
@@ -95,12 +95,16 @@ function template_preprocess_getlocations_view_map(&$variables) {
         if ($entity_type == 'node') {
           $marker = $options['node_map_marker'];
           if (isset($location['type']) && isset($location['field_name']) ) {
-            if (isset($options['node_marker__' . drupal_strtolower($location['type']) . '__' . $location['field_name']])) {
-              $marker = $options['node_marker__' . drupal_strtolower($location['type']) . '__' . $location['field_name']];
+            if (isset($options['node_marker__' . \Drupal\Component\Utility\Unicode::strtolower($location['type']) . '__' . $location['field_name']])) {
+              $marker = $options['node_marker__' . \Drupal\Component\Utility\Unicode::strtolower($location['type']) . '__' . $location['field_name']];
             }
           }
           // term marker
-          $getlocations_term_marker = variable_get('getlocations_term_marker', array('enable' => 0, 'vids' => 0, 'max_depth' => ''));
+          // @FIXME
+// Could not extract the default value because it is either indeterminate, or
+// not scalar. You'll need to provide a default value in
+// config/install/getlocations.settings.yml and config/schema/getlocations.schema.yml.
+$getlocations_term_marker = \Drupal::config('getlocations.settings')->get('getlocations_term_marker');
           if ($getlocations_term_marker['enable'] && $getlocations_term_marker['vids']) {
             $vids = $getlocations_term_marker['vids'];
             foreach ($vids AS $vid) {
@@ -169,7 +173,7 @@ function template_preprocess_getlocations_view_map(&$variables) {
                 $label = $location[$options['category_term_reference_field']];
                 $cat = preg_replace("/\s+/", "_", $label);
                 $cat = preg_replace("/'/", "", $cat);
-                $cat = drupal_strtolower($cat);
+                $cat = \Drupal\Component\Utility\Unicode::strtolower($cat);
                 $cats[$cat] = $label;
               }
             }
@@ -210,6 +214,15 @@ function template_preprocess_getlocations_view_map(&$variables) {
     $newdefaults['search_dist_info'] = $variables['view']->exposed_data['distance'];
   }
 
-  $variables['map']  = theme('getlocations_show', array('width' => $newdefaults['width'], 'height' => $newdefaults['height'], 'defaults' => $newdefaults, 'mapid' => $mapid, 'latlons' => $latlons, 'minmaxes' => $minmaxes, 'type' => '', 'node' => ''));
+  // @FIXME
+// theme() has been renamed to _theme() and should NEVER be called directly.
+// Calling _theme() directly can alter the expected output and potentially
+// introduce security issues (see https://www.drupal.org/node/2195739). You
+// should use renderable arrays instead.
+// 
+// 
+// @see https://www.drupal.org/node/2195739
+// $variables['map']  = theme('getlocations_show', array('width' => $newdefaults['width'], 'height' => $newdefaults['height'], 'defaults' => $newdefaults, 'mapid' => $mapid, 'latlons' => $latlons, 'minmaxes' => $minmaxes, 'type' => '', 'node' => ''));
+
 
 }

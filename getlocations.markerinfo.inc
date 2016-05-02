@@ -26,7 +26,7 @@ function _getlocations_get_icondata() {
   );
   $inis = array();
 
-  $markerdirs = module_invoke_all('getlocations_markerdir');
+  $markerdirs = \Drupal::moduleHandler()->invokeAll('getlocations_markerdir');
   if (count($markerdirs) < 1) {
     return FALSE;
   }
@@ -38,7 +38,7 @@ function _getlocations_get_icondata() {
     $inifiles = file_scan_directory($markerdir, '/.*\.ini$/');
     // Parse the ini files and store by path
     foreach ($inifiles as $file) {
-      $path = drupal_substr($file->uri, drupal_strlen($markerdir), -drupal_strlen($file->filename));
+      $path = \Drupal\Component\Utility\Unicode::substr($file->uri, \Drupal\Component\Utility\Unicode::strlen($markerdir), -\Drupal\Component\Utility\Unicode::strlen($file->filename));
       if (!isset($inis[$markerdir . $path])) {
         $inis[$path] = array();
       }
@@ -232,7 +232,7 @@ function _getlocations_get_marker_titles() {
 
   $inis = array();
 
-  $markerdirs = module_invoke_all('getlocations_markerdir');
+  $markerdirs = \Drupal::moduleHandler()->invokeAll('getlocations_markerdir');
   foreach ($markerdirs as $markerdir) {
     // Get the ini files.
     $inifiles = file_scan_directory($markerdir, '/.*\.ini$/');
