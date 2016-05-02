@@ -1,5 +1,5 @@
 name: 'Get Locations'
-description: 'Show locations on a Google map.'
+description: 'Show locations on a map.'
 package: Location
 core: 8.x
 version: 8.x-dev
